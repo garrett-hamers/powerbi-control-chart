@@ -16,7 +16,9 @@
     "test": "jest --runInBand",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src scripts tests --ext .ts,.mjs",
-    "audit": "npm audit",
+    "eslint": "npx eslint . --ext .js,.jsx,.ts,.tsx",
+    "audit": "npm audit --audit-level=moderate",
+    "certification-audit": "node scripts/certification-audit.mjs",
     "prepare": "node scripts/ensure-assets.mjs"
   },
   "dependencies": {
@@ -28,6 +30,7 @@
     "@typescript-eslint/eslint-plugin": "8.39.0",
     "@typescript-eslint/parser": "8.39.0",
     "eslint": "9.32.0",
+    "eslint-plugin-powerbi-visuals": "1.1.1",
     "jest": "30.0.5",
     "jest-environment-jsdom": "30.0.5",
     "powerbi-visuals-tools": "7.2.1",
