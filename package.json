@@ -13,6 +13,7 @@
     "clean": "node scripts/clean.mjs",
     "build": "node scripts/package.mjs",
     "package": "npm run clean && node scripts/package.mjs",
+    "package-reproducibility": "node scripts/package-reproducibility.mjs",
     "test": "jest --runInBand",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src scripts tests --ext .ts,.mjs",
@@ -35,6 +36,7 @@
     "eslint-plugin-powerbi-visuals": "1.1.1",
     "jest": "30.0.5",
     "jest-environment-jsdom": "30.0.5",
+    "jszip": "3.10.1",
     "powerbi-visuals-tools": "7.2.1",
     "ts-jest": "29.4.5",
     "typescript": "5.9.2"
