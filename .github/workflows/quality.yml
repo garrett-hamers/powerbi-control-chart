@@ -23,5 +23,6 @@ jobs:
       - run: npm run audit
       - run: npm run certification-audit
       - run: npm run package
+      - run: npm run package-reproducibility
       - run: npm run source-parity-audit
       - run: npm run release-manifest

@@ -11,6 +11,7 @@ npm run typecheck
 npm run lint
 npm run eslint
 npm run package
+npm run package-reproducibility
 npm run audit
 npm run certification-audit
 npm run source-parity-audit

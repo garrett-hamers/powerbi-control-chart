@@ -49,6 +49,11 @@ describe("package metadata", () => {
         }
         expect(packageJson.scripts["source-parity-audit"]).toBe("node scripts/source-parity-audit.mjs");
         expect(packageJson.scripts["release-manifest"]).toBe("node scripts/release-manifest.mjs");
+        expect(packageJson.scripts["package-reproducibility"]).toBe("node scripts/package-reproducibility.mjs");
+        expect(packageJson.devDependencies.jszip).toBe("3.10.1");
+        expect(readFileSync(join(root, "scripts/package-reproducibility.mjs"), "utf8")).toContain(
+            "clean package runs produced different bytes"
+        );
         expect(readFileSync(join(root, "scripts/release-manifest.mjs"), "utf8")).toContain(
             "expected exactly one current package artifact"
         );
