@@ -2,6 +2,7 @@
   "Role_Time_DisplayName": "Tiempo",
   "Role_Value_DisplayName": "Valor",
   "Role_Denominator_DisplayName": "Denominador",
+  "Role_SubgroupSD_DisplayName": "Desviación estándar del subgrupo",
   "Role_Series_DisplayName": "Serie",
   "Role_Baseline_DisplayName": "Grupo base",
   "Role_Tooltips_DisplayName": "Información sobre herramientas",

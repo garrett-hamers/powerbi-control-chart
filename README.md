@@ -3,18 +3,22 @@ Atlyn Control Chart Power BI custom visual: auditable statistical process monito
 
 ## MVP
 
-Atlyn supports Individuals, Run, P, U, and C charts. Bind `Time` and `Value`; bind
-`Denominator` for P/U charts and optionally bind `Series`, `BaselineGroup`,
-and `Tooltips`. Invalid rows are omitted with a visible warning; an
-all-invalid view is an explicit error state.
+Atlyn supports Individuals, Run, MR, Xbar, R, S, P, NP, U, and C charts. Bind
+`Time` and `Value`; bind `Denominator` for P/U/NP charts, or for subgroup size in
+Xbar/R/S charts, and optionally bind `SubgroupSD`, `Series`, `BaselineGroup`, and
+`Tooltips`. Invalid rows, empty times, and non-finite values are omitted with a
+visible warning; an all-invalid view is an explicit error state.
 
 Run mode is a conventional median-centered run chart: it intentionally has no
 statistical control limits and evaluates only configured shift and trend rules.
 P and U values are plotted as normalized rates (`numerator / denominator` and
 `count / exposure`), including varying-denominator control limits and tooltips.
-Large categorical results are rendered as partial data while the host provides
-additional segments through `fetchMoreData`; the status remains explicit until
-the host reports a complete result.
+The raw numerator/count remains separate from the normalized `plotValue`; control
+limits, alarms, specifications, ARIA labels, and alarm-table values use the
+normalized plot unit. NP uses a varying-size binomial count chart.
+Large categorical results are rendered with a deterministic bounded SVG sample
+while the host provides additional segments through `fetchMoreData`; the status
+reports both segment completeness and the rendered-point reduction.
 
 Control limits are calculated independently from optional specification limits.
 The visual exposes 1/2/3 sigma bands, formula/provenance text, direction semantics,
@@ -30,11 +34,12 @@ npm test
 npm run typecheck
 npm run lint
 npm run package
-npm audit
+npm run audit
 npm run certification-audit
+npm run source-parity-audit
 ```
 
-The readiness audit checks the package contract, localized metadata, empty privileges,
-and forbidden runtime network/unsafe-DOM APIs. The package has no privileges, network
-requests, or external runtime assets.
+The readiness audits check the package contract, localized metadata, empty privileges,
+source/package identity parity, and forbidden runtime network/unsafe-DOM APIs. The
+package has no privileges, network requests, or external runtime assets.
 This repository does not claim Microsoft certification or real-host validation.

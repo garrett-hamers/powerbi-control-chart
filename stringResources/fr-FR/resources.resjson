@@ -2,6 +2,7 @@
   "Role_Time_DisplayName": "Temps",
   "Role_Value_DisplayName": "Valeur",
   "Role_Denominator_DisplayName": "Dénominateur",
+  "Role_SubgroupSD_DisplayName": "Écart type du sous-groupe",
   "Role_Series_DisplayName": "Série",
   "Role_Baseline_DisplayName": "Groupe de base",
   "Role_Tooltips_DisplayName": "Info-bulles",

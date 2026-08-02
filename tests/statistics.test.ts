@@ -39,6 +39,7 @@ describe("golden statistical calculations", () => {
         ];
         const result = calculateChart(rows, settings("p"));
         expect(result.points.map((point) => point.value)).toEqual([0.1, 0.2, 0.1]);
+        expect(result.points.map((point) => point.plotValue)).toEqual([0.1, 0.2, 0.1]);
         expect(result.points.map((point) => point.rawValue)).toEqual([1, 4, 1]);
         closeTo(result.points[0].centerline, 0.15);
         closeTo(result.points[0].sigma, Math.sqrt(0.15 * 0.85 / 10));
@@ -54,6 +55,7 @@ describe("golden statistical calculations", () => {
         ];
         const result = calculateChart(rows, settings("u"));
         expect(result.points.map((point) => point.value)).toEqual([0.1, 0.2]);
+        expect(result.points.map((point) => point.plotValue)).toEqual([0.1, 0.2]);
         expect(result.points.map((point) => point.rawValue)).toEqual([1, 4]);
         closeTo(result.points[0].centerline, 5 / 30);
         closeTo(result.points[0].sigma, Math.sqrt((5 / 30) / 10));
@@ -91,6 +93,8 @@ describe("golden statistical calculations", () => {
             }
         );
         expect(result.points.map((point) => point.value)).toEqual([0.1, 0.3]);
+        expect(result.points.map((point) => point.plotValue)).toEqual([0.1, 0.3]);
+        expect(result.points.map((point) => point.rawValue)).toEqual([1, 6]);
         expect(result.points.map((point) => point.specificationStatus)).toEqual(["below", "above"]);
     });
 
@@ -170,5 +174,92 @@ describe("golden statistical calculations", () => {
         expect(result.droppedRows).toBe(1);
         expect(result.receivedRows).toBe(2);
         expect(result.dataStatus).toBe("complete");
+    });
+
+    test("MR uses the moving-range observations, not a second moving range", () => {
+        const result = calculateChart(
+            [row(0, 10), row(1, 12), row(2, 11), row(3, 13)],
+            settings("mr")
+        );
+        expect(result.points.map((point) => point.plotValue)).toEqual([2, 1, 2]);
+        closeTo(result.points[0].centerline, 5 / 3);
+        closeTo(result.points[0].sigma, (5 / 3) / 1.128);
+        expect(result.points[0].controlLower).toBe(0);
+        closeTo(result.points[0].controlUpper, (5 / 3) * 3.267);
+        expect(result.formula).toContain("MR[i]");
+    });
+
+    test("Xbar scales fallback limits for varying subgroup sizes", () => {
+        const result = calculateChart(
+            [
+                row(0, 10, { denominator: 4 }),
+                row(1, 12, { denominator: 16 }),
+                row(2, 11, { denominator: 16 })
+            ],
+            settings("xbar")
+        );
+        expect(result.points[0].sigma).toBeGreaterThan(result.points[1].sigma);
+        closeTo(result.points[0].sigma / result.points[1].sigma, 2);
+    });
+
+    test("Xbar accepts subgroup standard deviations and subgroup sizes", () => {
+        const result = calculateChart(
+            [
+                row(0, 10, { denominator: 5, subgroupSD: 2 }),
+                row(1, 12, { denominator: 5, subgroupSD: 2 }),
+                row(2, 11, { denominator: 5, subgroupSD: 2 })
+            ],
+            settings("xbar")
+        );
+        closeTo(result.points[0].centerline, 11);
+        closeTo(result.points[0].sigma, 2 / (0.9399856 * Math.sqrt(5)));
+        expect(result.points[0].plotValue).toBe(10);
+        expect(result.points[0].subgroupSD).toBe(2);
+    });
+
+    test("R and S use non-negative standard subgroup limits", () => {
+        const range = calculateChart(
+            [row(0, 2, { denominator: 5 }), row(1, 3, { denominator: 5 })],
+            settings("r")
+        );
+        expect(range.points[0].controlLower).toBe(0);
+        closeTo(range.points[0].controlUpper, 2.114 * 2.5);
+        const standardDeviation = calculateChart(
+            [row(0, 1, { denominator: 5 }), row(1, 2, { denominator: 5 })],
+            settings("s")
+        );
+        expect(standardDeviation.points[0].controlLower).toBe(0);
+        expect(standardDeviation.points[0].controlUpper).toBeGreaterThan(2);
+    });
+
+    test("NP uses varying sample sizes for count limits", () => {
+        const result = calculateChart(
+            [row(0, 1, { denominator: 10 }), row(1, 4, { denominator: 20 })],
+            settings("np")
+        );
+        expect(result.points.map((point) => point.plotValue)).toEqual([1, 4]);
+        expect(result.points.map((point) => point.rawValue)).toEqual([1, 4]);
+        closeTo(result.points[0].centerline, (5 / 30) * 10);
+        closeTo(result.points[1].centerline, (5 / 30) * 20);
+        expect(result.points[1].controlUpper).toBeGreaterThan(result.points[0].controlUpper);
+    });
+
+    test("MR reports insufficient data instead of silently completing", () => {
+        const result = calculateChart([row(0, 10)], settings("mr"));
+        expect(result.points).toHaveLength(0);
+        expect(result.dataStatus).toBe("empty");
+    });
+
+    test("empty times and invalid subgroup data are dropped", () => {
+        const result = calculateChart(
+            [
+                row(0, 1, { time: "" }),
+                row(1, 2, { denominator: 1 }),
+                row(2, 3, { denominator: 5, subgroupSD: -1 })
+            ],
+            settings("xbar")
+        );
+        expect(result.points).toHaveLength(1);
+        expect(result.droppedRows).toBe(2);
     });
 });

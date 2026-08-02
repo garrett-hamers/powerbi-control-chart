@@ -5,7 +5,7 @@
     "guid": "atlynControlChartA1B2C3D4E5F6G7H8I9J0",
     "visualClassName": "Visual",
     "version": "1.0.0.0",
-    "description": "Auditable Individuals, Run, P, U, and C statistical process control chart.",
+    "description": "Auditable Individuals, Run, MR, Xbar, R, S, P, NP, U, and C statistical process control chart.",
     "supportUrl": "https://github.com/garrett-hamers/powerbi-control-chart/issues"
   },
   "apiVersion": "5.11.1",

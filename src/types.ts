@@ -1,6 +1,16 @@
 import powerbi from "powerbi-visuals-api";
 
-export type ChartMode = "individuals" | "run" | "p" | "u" | "c";
+export type ChartMode =
+    | "individuals"
+    | "run"
+    | "mr"
+    | "xbar"
+    | "r"
+    | "s"
+    | "p"
+    | "np"
+    | "u"
+    | "c";
 export type Direction = "both" | "higherIsBetter" | "lowerIsBetter" | "neutral";
 export type AlarmSide = "high" | "low" | "both";
 export type RuleName = "outside3Sigma" | "twoOfThree" | "shift" | "trend";
@@ -15,6 +25,7 @@ export interface ChartRow {
     value: number;
     rawValue?: number;
     denominator?: number;
+    subgroupSD?: number;
     seriesKey: string;
     seriesLabel: string;
     baselineKey: string;
@@ -37,10 +48,13 @@ export interface PointStatistics {
     upperThree: number;
     controlLower: number;
     controlUpper: number;
+    ruleLower?: number;
+    ruleUpper?: number;
 }
 
 export interface CalculatedPoint extends Omit<ChartRow, "value">, PointStatistics {
     value: number;
+    plotValue: number;
     rawValue: number;
     specificationStatus: SpecificationStatus;
     alarms: RuleName[];
@@ -59,6 +73,8 @@ export interface Alarm {
     windowEnd: number;
     side: AlarmSide;
     value: number;
+    plotValue: number;
+    rawValue: number;
     limit: number;
     centerline: number;
     baselineLabel: string;
@@ -99,8 +115,8 @@ export interface CalculationOptions {
 export interface RuleOptions {
     sigmaMultiplier: number;
     twoSigmaMultiplier?: number;
-    shiftLength: number;
-    trendLength: number;
+    shiftLength?: number;
+    trendLength?: number;
     resetOnBaselineChange: boolean;
     enableOutside3Sigma?: boolean;
     enableTwoOfThree?: boolean;

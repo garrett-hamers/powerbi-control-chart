@@ -2,6 +2,7 @@
   "Role_Time_DisplayName": "الوقت",
   "Role_Value_DisplayName": "القيمة",
   "Role_Denominator_DisplayName": "المقام",
+  "Role_SubgroupSD_DisplayName": "الانحراف المعياري للمجموعة",
   "Role_Series_DisplayName": "السلسلة",
   "Role_Baseline_DisplayName": "مجموعة الأساس",
   "Role_Tooltips_DisplayName": "تلميحات الأدوات",

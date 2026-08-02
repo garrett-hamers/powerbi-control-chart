@@ -2,13 +2,15 @@ import { Alarm, CalculatedPoint, RuleName, RuleOptions } from "./types";
 
 const DEFAULT_SIGMA_MULTIPLIER = 3;
 const DEFAULT_TWO_SIGMA_MULTIPLIER = 2;
+const DEFAULT_SHIFT_LENGTH = 8;
+const DEFAULT_TREND_LENGTH = 6;
 
 function pointKeyFor(point: CalculatedPoint): string {
     return point.pointKey ?? `${point.seriesKey}\u001f${point.baselineKey}\u001f${point.index}`;
 }
 
-function numericMultiplier(value: number | undefined, fallback: number): number {
-    return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : fallback;
+function numericMultiplier(value: number | undefined, fallback: number, minimum = 0): number {
+    return typeof value === "number" && Number.isFinite(value) && value >= minimum ? value : fallback;
 }
 
 function language(locale: string | undefined): string {
@@ -20,8 +22,8 @@ function sideFor(
     point: CalculatedPoint,
     multiplier: number
 ): "high" | "low" | undefined {
-    const high = point.centerline + multiplier * point.sigma;
-    const low = point.centerline - multiplier * point.sigma;
+    const high = point.ruleUpper ?? point.centerline + multiplier * point.sigma;
+    const low = point.ruleLower ?? point.centerline - multiplier * point.sigma;
     if (value > high) {
         return "high";
     }
@@ -125,8 +127,8 @@ function makeAlarm(
             : point.centerline + twoSigmaMultiplier * point.sigma
         : rule === "outside3Sigma"
             ? side === "low"
-                ? point.centerline - controlMultiplier * point.sigma
-                : point.centerline + controlMultiplier * point.sigma
+                ? point.ruleLower ?? point.centerline - controlMultiplier * point.sigma
+                : point.ruleUpper ?? point.centerline + controlMultiplier * point.sigma
             : point.centerline;
     return {
         id: `${rule}:${pointKeyFor(point)}:${windowStart}:${windowEnd}`,
@@ -140,7 +142,9 @@ function makeAlarm(
         windowStart,
         windowEnd,
         side,
-        value: point.value,
+        value: point.plotValue,
+        plotValue: point.plotValue,
+        rawValue: point.rawValue,
         limit,
         centerline: point.centerline,
         baselineLabel: point.baselineLabel,
@@ -184,7 +188,7 @@ function outsideThreeSigma(points: CalculatedPoint[], options: RuleOptions): Ala
     const alarms: Alarm[] = [];
     const controlMultiplier = numericMultiplier(options.sigmaMultiplier, DEFAULT_SIGMA_MULTIPLIER);
     for (const point of points) {
-        const side = sideFor(point.value, point, controlMultiplier);
+        const side = sideFor(point.plotValue, point, controlMultiplier);
         if (!side) {
             continue;
         }
@@ -212,8 +216,8 @@ function twoOfThree(points: CalculatedPoint[], options: RuleOptions): Alarm[] {
     const twoSigmaMultiplier = numericMultiplier(options.twoSigmaMultiplier, DEFAULT_TWO_SIGMA_MULTIPLIER);
     for (let end = 2; end < points.length; end += 1) {
         const window = points.slice(end - 2, end + 1);
-        const high = window.filter((point) => point.value > point.centerline + twoSigmaMultiplier * point.sigma);
-        const low = window.filter((point) => point.value < point.centerline - twoSigmaMultiplier * point.sigma);
+        const high = window.filter((point) => point.plotValue > point.centerline + twoSigmaMultiplier * point.sigma);
+        const low = window.filter((point) => point.plotValue < point.centerline - twoSigmaMultiplier * point.sigma);
         const matching = high.length >= 2 ? high : low.length >= 2 ? low : [];
         if (matching.length >= 2) {
             const side = high.length >= 2 ? "high" : "low";
@@ -238,12 +242,15 @@ function shift(points: CalculatedPoint[], options: RuleOptions): Alarm[] {
         return [];
     }
     const alarms: Alarm[] = [];
-    const shiftLength = Math.max(2, Math.floor(options.shiftLength));
+    const shiftLength = Math.max(
+        2,
+        Math.floor(numericMultiplier(options.shiftLength, DEFAULT_SHIFT_LENGTH, 2))
+    );
     let start = 0;
     while (start < points.length) {
-        const firstSide = points[start].value > points[start].centerline
+        const firstSide = points[start].plotValue > points[start].centerline
             ? "high"
-            : points[start].value < points[start].centerline
+            : points[start].plotValue < points[start].centerline
                 ? "low"
                 : undefined;
         if (!firstSide) {
@@ -253,8 +260,8 @@ function shift(points: CalculatedPoint[], options: RuleOptions): Alarm[] {
         let end = start + 1;
         while (
             end < points.length &&
-            ((firstSide === "high" && points[end].value > points[end].centerline) ||
-                (firstSide === "low" && points[end].value < points[end].centerline))
+            ((firstSide === "high" && points[end].plotValue > points[end].centerline) ||
+                (firstSide === "low" && points[end].plotValue < points[end].centerline))
         ) {
             end += 1;
         }
@@ -282,7 +289,10 @@ function trend(points: CalculatedPoint[], options: RuleOptions): Alarm[] {
         return [];
     }
     const alarms: Alarm[] = [];
-    const trendLength = Math.max(3, Math.floor(options.trendLength));
+    const trendLength = Math.max(
+        3,
+        Math.floor(numericMultiplier(options.trendLength, DEFAULT_TREND_LENGTH, 3))
+    );
     if (points.length < 2) {
         return alarms;
     }
@@ -292,9 +302,9 @@ function trend(points: CalculatedPoint[], options: RuleOptions): Alarm[] {
         const previous = points[index - 1];
         const current = points[index];
         const nextDirection = current
-            ? current.value > previous.value
+            ? current.plotValue > previous.plotValue
                 ? "up"
-                : current.value < previous.value
+                : current.plotValue < previous.plotValue
                     ? "down"
                     : undefined
             : undefined;

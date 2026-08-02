@@ -48,8 +48,20 @@ if (!Array.isArray(capabilities.privileges) || capabilities.privileges.length !=
 if (pbiviz.externalJS !== null) {
     violations.push("pbiviz.externalJS must remain null");
 }
-if (capabilities.dataRoles.some((role) => role.name === "SubgroupSD")) {
-    violations.push("SubgroupSD must not be advertised without an implementation");
+for (const requiredRole of ["Time", "Value", "Denominator", "SubgroupSD", "Series", "BaselineGroup", "Tooltips"]) {
+    if (!capabilities.dataRoles.some((role) => role.name === requiredRole)) {
+        violations.push(`missing implemented data role: ${requiredRole}`);
+    }
+}
+const expectedModes = ["individuals", "run", "mr", "xbar", "r", "s", "p", "np", "u", "c"];
+const advertisedModes = capabilities.objects?.chart?.properties?.mode?.type?.enumeration?.map((item) => item.value) ?? [];
+if (JSON.stringify(advertisedModes) !== JSON.stringify(expectedModes)) {
+    violations.push("advertised chart modes do not match the implemented source contract");
+}
+for (const releaseFile of ["LICENSE", "CHANGELOG.md", "SECURITY.md", "CONTRIBUTING.md"]) {
+    if (!existsSync(join(root, releaseFile))) {
+        violations.push(`missing release metadata: ${releaseFile}`);
+    }
 }
 for (const locale of ["en-US", "es-ES", "fr-FR", "de-DE", "ar-SA"]) {
     const resource = join(root, "stringResources", locale, "resources.resjson");
@@ -65,4 +77,4 @@ if (violations.length > 0) {
     process.exit(1);
 }
 
-process.stdout.write("Certification readiness audit passed: no runtime network/unsafe DOM APIs, privileges are empty, and localized metadata is present.\n");
+process.stdout.write("Certification readiness audit passed: no runtime network/unsafe DOM APIs, privileges are empty, localized metadata and release files are present.\n");
