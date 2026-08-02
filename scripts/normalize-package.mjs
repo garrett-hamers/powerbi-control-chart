@@ -14,9 +14,11 @@ const fixedDate = new Date("1980-01-01T00:00:00.000Z");
 const fixedCompression = {
     compression: "DEFLATE",
     compressionOptions: { level: 9 },
-    platform: "DOS",
+    platform: "UNIX",
     date: fixedDate,
-    createFolders: false
+    createFolders: false,
+    unixPermissions: 0o100644,
+    dosPermissions: 0
 };
 
 const source = await readFile(artifact);
@@ -24,7 +26,12 @@ const input = await JSZip.loadAsync(source);
 const output = new JSZip();
 for (const name of Object.keys(input.files).sort()) {
     const entry = input.files[name];
-    const options = { ...fixedCompression, dir: entry.dir };
+    const options = {
+        ...fixedCompression,
+        dir: entry.dir,
+        unixPermissions: entry.dir ? 0o40755 : 0o100644,
+        dosPermissions: entry.dir ? 0x10 : 0
+    };
     if (entry.dir) {
         output.file(name, Buffer.alloc(0), options);
     } else {
@@ -36,7 +43,7 @@ const normalized = await output.generateAsync({
     type: "nodebuffer",
     compression: "DEFLATE",
     compressionOptions: { level: 9 },
-    platform: "DOS",
+    platform: "UNIX",
     comment: ""
 });
 
