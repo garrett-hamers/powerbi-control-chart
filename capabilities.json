@@ -1,0 +1,145 @@
+{
+  "privileges": [],
+  "supportsHighlight": true,
+  "supportsKeyboardFocus": true,
+  "supportsMultiVisualSelection": true,
+  "supportsLandingPage": true,
+  "tooltips": {
+    "supportedTypes": {
+      "default": true,
+      "canvas": true
+    },
+    "roles": ["Tooltips"]
+  },
+  "dataRoles": [
+    {
+      "name": "Time",
+      "displayName": "Time",
+      "kind": "Grouping"
+    },
+    {
+      "name": "Value",
+      "displayName": "Value",
+      "kind": "Measure"
+    },
+    {
+      "name": "Denominator",
+      "displayName": "Denominator",
+      "kind": "Measure"
+    },
+    {
+      "name": "Series",
+      "displayName": "Series",
+      "kind": "Grouping"
+    },
+    {
+      "name": "BaselineGroup",
+      "displayName": "Baseline group",
+      "kind": "Grouping"
+    },
+    {
+      "name": "SubgroupSD",
+      "displayName": "Subgroup SD",
+      "kind": "Measure"
+    },
+    {
+      "name": "Tooltips",
+      "displayName": "Tooltips",
+      "kind": "GroupingOrMeasure"
+    }
+  ],
+  "objects": {
+    "chart": {
+      "displayName": "Chart",
+      "properties": {
+        "mode": {
+          "displayName": "Chart mode",
+          "type": {
+            "enumeration": [
+              { "value": "individuals", "displayName": "Individuals" },
+              { "value": "run", "displayName": "Run" },
+              { "value": "p", "displayName": "P" },
+              { "value": "u", "displayName": "U" },
+              { "value": "c", "displayName": "C" }
+            ]
+          }
+        },
+        "direction": {
+          "displayName": "Direction",
+          "type": {
+            "enumeration": [
+              { "value": "both", "displayName": "Show both sides" },
+              { "value": "higherIsBetter", "displayName": "Higher is better" },
+              { "value": "lowerIsBetter", "displayName": "Lower is better" },
+              { "value": "neutral", "displayName": "Neutral" }
+            ]
+          }
+        },
+        "shiftLength": {
+          "displayName": "Shift points",
+          "type": { "numeric": true }
+        },
+        "trendLength": {
+          "displayName": "Trend points",
+          "type": { "numeric": true }
+        },
+        "showBands": {
+          "displayName": "Show sigma bands",
+          "type": { "bool": true }
+        },
+        "joinRebaselineRules": {
+          "displayName": "Join rule sequences across baseline groups",
+          "type": { "bool": true }
+        }
+      }
+    },
+    "specificationLimits": {
+      "displayName": "Specification limits",
+      "properties": {
+        "lower": {
+          "displayName": "Lower specification limit",
+          "type": { "numeric": true }
+        },
+        "upper": {
+          "displayName": "Upper specification limit",
+          "type": { "numeric": true }
+        },
+        "show": {
+          "displayName": "Show specification limits",
+          "type": { "bool": true }
+        }
+      }
+    },
+    "accessibility": {
+      "displayName": "Accessibility",
+      "properties": {
+        "showAlarmTable": {
+          "displayName": "Show accessible alarm table",
+          "type": { "bool": true }
+        }
+      }
+    }
+  },
+  "dataViewMappings": [
+    {
+      "categorical": {
+        "categories": {
+          "select": [
+            { "for": { "in": "Time" } },
+            { "for": { "in": "Series" } },
+            { "for": { "in": "BaselineGroup" } }
+          ],
+          "dataReductionAlgorithm": { "window": { "count": 30000 } }
+        },
+        "values": {
+          "select": [
+            { "for": { "in": "Value" } },
+            { "for": { "in": "Denominator" } },
+            { "for": { "in": "SubgroupSD" } },
+            { "for": { "in": "Tooltips" } }
+          ]
+        }
+      }
+    }
+  ]
+}

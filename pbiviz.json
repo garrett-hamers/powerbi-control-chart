@@ -1,0 +1,23 @@
+{
+  "visual": {
+    "name": "atlynControlChart",
+    "displayName": "Atlyn Control Chart",
+    "guid": "atlynControlChartA1B2C3D4E5F6G7H8I9J0",
+    "visualClassName": "Visual",
+    "version": "1.0.0.0",
+    "description": "Auditable Individuals, Run, P, U, and C statistical process control chart.",
+    "supportUrl": "https://github.com/garrett-hamers/powerbi-control-chart/issues"
+  },
+  "apiVersion": "5.11.1",
+  "author": {
+    "name": "Atlyn",
+    "email": "support@atlyn.example"
+  },
+  "assets": {
+    "icon": "assets/icon.png"
+  },
+  "externalJS": null,
+  "style": "style/visual.less",
+  "capabilities": "capabilities.json",
+  "stringResources": []
+}

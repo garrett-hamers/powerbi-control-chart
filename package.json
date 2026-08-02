@@ -1,0 +1,37 @@
+{
+  "name": "atlyn-control-chart",
+  "version": "1.0.0",
+  "description": "Atlyn Control Chart Power BI custom visual: auditable statistical process monitoring.",
+  "private": true,
+  "license": "MIT",
+  "overrides": {
+    "webpack": "5.109.2",
+    "uuid": "11.1.1"
+  },
+  "main": "dist/visual.js",
+  "scripts": {
+    "clean": "node scripts/clean.mjs",
+    "build": "node scripts/package.mjs",
+    "package": "npm run clean && node scripts/package.mjs",
+    "test": "jest --runInBand",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src scripts tests --ext .ts,.mjs",
+    "audit": "npm audit",
+    "prepare": "node scripts/ensure-assets.mjs"
+  },
+  "dependencies": {
+    "powerbi-visuals-api": "5.11.1"
+  },
+  "devDependencies": {
+    "@types/jest": "30.0.0",
+    "@types/node": "24.2.0",
+    "@typescript-eslint/eslint-plugin": "8.39.0",
+    "@typescript-eslint/parser": "8.39.0",
+    "eslint": "9.32.0",
+    "jest": "30.0.5",
+    "jest-environment-jsdom": "30.0.5",
+    "powerbi-visuals-tools": "7.2.1",
+    "ts-jest": "29.4.5",
+    "typescript": "5.9.2"
+  }
+}
