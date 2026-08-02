@@ -6,6 +6,7 @@ type LocaleKey =
     | "noData"
     | "missingDenominator"
     | "allInvalid"
+    | "insufficientData"
     | "renderingFailed"
     | "partialData"
     | "incompleteData"
@@ -29,6 +30,8 @@ type LocaleKey =
     | "alarmTable"
     | "time"
     | "value"
+    | "plotValue"
+    | "rawValue"
     | "denominator"
     | "numerator"
     | "count"
@@ -37,6 +40,9 @@ type LocaleKey =
     | "lowerControl"
     | "upperControl"
     | "sigma"
+    | "subgroupSD"
+    | "completeData"
+    | "renderedPoints"
     | "side"
     | "limit"
     | "notApplicable"
@@ -52,6 +58,7 @@ const translations: Record<string, Partial<Record<LocaleKey, string>>> = {
         noData: "Agregue Tiempo y Valor para comenzar.",
         missingDenominator: "Este modo requiere un denominador positivo.",
         allInvalid: "No hay filas válidas para este modo.",
+        insufficientData: "Se necesitan al menos dos observaciones válidas para este modo.",
         renderingFailed: "No se pudo representar el gráfico.",
         partialData: "Se omitieron filas no válidas.",
         incompleteData: "Datos parciales.",
@@ -69,6 +76,8 @@ const translations: Record<string, Partial<Record<LocaleKey, string>>> = {
         alarmTable: "Resumen de alarmas accesible",
         time: "Tiempo",
         value: "Valor",
+        plotValue: "Valor trazado",
+        rawValue: "Valor sin normalizar",
         denominator: "Denominador",
         numerator: "Numerador",
         count: "Conteo",
@@ -77,6 +86,9 @@ const translations: Record<string, Partial<Record<LocaleKey, string>>> = {
         lowerControl: "Límite inferior de control",
         upperControl: "Límite superior de control",
         sigma: "Sigma",
+        subgroupSD: "SD del subgrupo",
+        completeData: "Datos completos",
+        renderedPoints: "puntos representados",
         side: "Lado",
         limit: "Límite",
         notApplicable: "No aplicable",
@@ -91,6 +103,7 @@ const translations: Record<string, Partial<Record<LocaleKey, string>>> = {
         noData: "Ajoutez Temps et Valeur pour commencer.",
         missingDenominator: "Ce mode nécessite un dénominateur positif.",
         allInvalid: "Aucune ligne valide pour ce mode.",
+        insufficientData: "Au moins deux observations valides sont nécessaires pour ce mode.",
         renderingFailed: "Le graphique n'a pas pu être rendu.",
         partialData: "Des lignes invalides ont été ignorées.",
         incompleteData: "Données partielles.",
@@ -108,6 +121,8 @@ const translations: Record<string, Partial<Record<LocaleKey, string>>> = {
         alarmTable: "Résumé accessible des alarmes",
         time: "Temps",
         value: "Valeur",
+        plotValue: "Valeur tracée",
+        rawValue: "Valeur brute",
         denominator: "Dénominateur",
         numerator: "Numérateur",
         count: "Compte",
@@ -116,6 +131,9 @@ const translations: Record<string, Partial<Record<LocaleKey, string>>> = {
         lowerControl: "Limite de contrôle inférieure",
         upperControl: "Limite de contrôle supérieure",
         sigma: "Sigma",
+        subgroupSD: "Écart type du sous-groupe",
+        completeData: "Données complètes",
+        renderedPoints: "points rendus",
         side: "Côté",
         limit: "Limite",
         notApplicable: "Non applicable",
@@ -130,6 +148,7 @@ const translations: Record<string, Partial<Record<LocaleKey, string>>> = {
         noData: "Fügen Sie Zeit und Wert hinzu.",
         missingDenominator: "Dieser Modus benötigt einen positiven Nenner.",
         allInvalid: "Keine gültigen Zeilen für diesen Modus.",
+        insufficientData: "Für diesen Modus sind mindestens zwei gültige Beobachtungen erforderlich.",
         renderingFailed: "Das Diagramm konnte nicht dargestellt werden.",
         partialData: "Ungültige Zeilen wurden ausgelassen.",
         incompleteData: "Unvollständige Daten.",
@@ -147,6 +166,8 @@ const translations: Record<string, Partial<Record<LocaleKey, string>>> = {
         alarmTable: "Barrierefreie Alarmübersicht",
         time: "Zeit",
         value: "Wert",
+        plotValue: "Gezeichneter Wert",
+        rawValue: "Rohwert",
         denominator: "Nenner",
         numerator: "Zähler",
         count: "Anzahl",
@@ -155,6 +176,9 @@ const translations: Record<string, Partial<Record<LocaleKey, string>>> = {
         lowerControl: "Untere Regelgrenze",
         upperControl: "Obere Regelgrenze",
         sigma: "Sigma",
+        subgroupSD: "Untergruppen-SD",
+        completeData: "Vollständige Daten",
+        renderedPoints: "gerenderte Punkte",
         side: "Seite",
         limit: "Grenze",
         notApplicable: "Nicht zutreffend",
@@ -169,6 +193,7 @@ const translations: Record<string, Partial<Record<LocaleKey, string>>> = {
         noData: "أضف الوقت والقيمة للبدء.",
         missingDenominator: "يتطلب هذا الوضع مقامًا موجبًا.",
         allInvalid: "لا توجد صفوف صالحة لهذا الوضع.",
+        insufficientData: "يتطلب هذا الوضع ملاحظتين صالحتين على الأقل.",
         renderingFailed: "تعذر عرض المخطط.",
         partialData: "تم تجاهل الصفوف غير الصالحة.",
         incompleteData: "بيانات جزئية.",
@@ -186,6 +211,8 @@ const translations: Record<string, Partial<Record<LocaleKey, string>>> = {
         alarmTable: "ملخص التنبيهات الميسر",
         time: "الوقت",
         value: "القيمة",
+        plotValue: "القيمة المرسومة",
+        rawValue: "القيمة الخام",
         denominator: "المقام",
         numerator: "البسط",
         count: "العدد",
@@ -194,6 +221,9 @@ const translations: Record<string, Partial<Record<LocaleKey, string>>> = {
         lowerControl: "حد التحكم الأدنى",
         upperControl: "حد التحكم الأعلى",
         sigma: "سيغما",
+        subgroupSD: "الانحراف المعياري للمجموعة",
+        completeData: "بيانات كاملة",
+        renderedPoints: "نقاط معروضة",
         side: "الجانب",
         limit: "الحد",
         notApplicable: "غير منطبق",
@@ -216,8 +246,9 @@ export function t(key: LocaleKey, locale?: string): string {
 const english: Record<LocaleKey, string> = {
     title: "Atlyn Control Chart",
     noData: "Add Time and Value fields to begin.",
-    missingDenominator: "P and U modes require a positive Denominator field.",
+    missingDenominator: "P, NP, and U modes require a positive Denominator field.",
     allInvalid: "No valid rows are available for this mode.",
+    insufficientData: "At least two valid observations are required for this mode.",
     renderingFailed: "The chart could not be rendered.",
     partialData: "Invalid rows were omitted.",
     incompleteData: "Partial data.",
@@ -241,6 +272,8 @@ const english: Record<LocaleKey, string> = {
     alarmTable: "Accessible alarm summary",
     time: "Time",
     value: "Value",
+    plotValue: "Plot value",
+    rawValue: "Raw value",
     denominator: "Denominator",
     numerator: "Numerator",
     count: "Count",
@@ -249,6 +282,9 @@ const english: Record<LocaleKey, string> = {
     lowerControl: "Lower control limit",
     upperControl: "Upper control limit",
     sigma: "Sigma",
+    subgroupSD: "Subgroup standard deviation",
+    completeData: "Complete data",
+    renderedPoints: "points rendered",
     side: "Side",
     limit: "Limit",
     notApplicable: "Not applicable",
@@ -263,7 +299,12 @@ export function modeLabel(mode: ChartMode, locale?: string): string {
     const labels: Record<ChartMode, string> = {
         individuals: "Individuals",
         run: "Run",
+        mr: "Moving range (MR)",
+        xbar: "Xbar",
+        r: "Range (R)",
+        s: "Standard deviation (S)",
         p: "P",
+        np: "NP",
         u: "U",
         c: "C"
     };

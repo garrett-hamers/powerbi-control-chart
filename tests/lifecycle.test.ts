@@ -53,4 +53,42 @@ describe("visual lifecycle", () => {
         );
         expect(mocked.events.renderingFinished).not.toHaveBeenCalled();
     });
+
+    test("treats a completed segment as complete and does not fetch again", () => {
+        const element = document.createElement("div");
+        const mocked = makeHost();
+        const visual = new Visual({ element, host: mocked.host } as any);
+        const dataView = visualDataView([1, 2, 3]);
+        dataView.metadata.segment = { done: true };
+        visual.update({
+            dataViews: [dataView],
+            viewport: { width: 400, height: 300 },
+            type: 2
+        } as any);
+        expect(mocked.host.fetchMoreData).not.toHaveBeenCalled();
+        expect(element.querySelector(".atlyn-control-chart")?.getAttribute("data-data-status")).toBe("complete");
+        expect(mocked.events.renderingStarted).toHaveBeenCalledTimes(1);
+        expect(mocked.events.renderingFinished).toHaveBeenCalledTimes(1);
+        visual.destroy();
+    });
+
+    test("removes rendered point listeners before replacing the chart", () => {
+        const element = document.createElement("div");
+        const mocked = makeHost();
+        const visual = new Visual({ element, host: mocked.host } as any);
+        visual.update({
+            dataViews: [visualDataView([1, 2, 3])],
+            viewport: { width: 400, height: 300 },
+            type: 2
+        } as any);
+        const oldPoint = element.querySelector(".atlyn-point") as SVGCircleElement;
+        const removeListener = jest.spyOn(oldPoint, "removeEventListener");
+        visual.update({
+            dataViews: [visualDataView([2, 3, 4])],
+            viewport: { width: 400, height: 300 },
+            type: 2
+        } as any);
+        expect(removeListener).toHaveBeenCalled();
+        visual.destroy();
+    });
 });

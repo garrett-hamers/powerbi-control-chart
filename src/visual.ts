@@ -18,6 +18,8 @@ type VisualUpdateOptions = powerbi.extensibility.visual.VisualUpdateOptions;
 type VisualConstructorOptions = powerbi.extensibility.visual.VisualConstructorOptions;
 
 const SVG_NS = "http://www.w3.org/2000/svg";
+const SUPPORTED_MODES: ChartMode[] = ["individuals", "run", "mr", "xbar", "r", "s", "p", "np", "u", "c"];
+const MAX_RENDER_POINTS = 2000;
 const DEFAULT_SETTINGS: VisualSettings = {
     mode: "individuals",
     direction: "both",
@@ -97,7 +99,13 @@ function textValue(value: unknown): string {
 
 function safeSetting<T>(objects: any, objectName: string, propertyName: string, fallback: T): T {
     const value = objects?.[objectName]?.[propertyName];
-    return value === undefined || value === null ? fallback : value as T;
+    if (value === undefined || value === null) {
+        return fallback;
+    }
+    if (typeof value === "object" && value !== null && "value" in value) {
+        return (value as { value: T }).value;
+    }
+    return value as T;
 }
 
 function clamp(value: number, minimum: number, maximum: number): number {
@@ -177,12 +185,14 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
     private readonly localizationManager?: powerbi.extensibility.ILocalizationManager;
     private readonly pointElements = new Map<string, SVGCircleElement>();
     private readonly eventHandlers: Array<{ target: EventTarget; type: string; listener: EventListener }> = [];
+    private readonly renderEventHandlers: Array<{ target: EventTarget; type: string; listener: EventListener }> = [];
     private settings: VisualSettings = { ...DEFAULT_SETTINGS };
     private locale = "en-US";
     private viewport = { width: 480, height: 300 };
     private result: ChartResult | undefined;
     private selectedKeys = new Set<string>();
     private longPressTimer: ReturnType<typeof setTimeout> | undefined;
+    private touchTooltipTimer: ReturnType<typeof setTimeout> | undefined;
     private segmentFetchExhausted = false;
     private segmentRequestInFlight = false;
     private destroyed = false;
@@ -203,7 +213,7 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
         this.root = document.createElement("div");
         this.root.className = "atlyn-control-chart";
         this.root.tabIndex = 0;
-        this.root.setAttribute("role", "application");
+        this.root.setAttribute("role", "group");
         this.root.setAttribute("aria-label", "Atlyn Control Chart");
 
         this.header = document.createElement("div");
@@ -235,9 +245,9 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
         this.listen(this.root, "contextmenu", (event) => this.onRootContextMenu(event));
         this.listen(this.root, "keydown", (event) => this.onRootKeyDown(event));
         this.listen(this.root, "pointerdown", (event) => this.onRootPointerDown(event));
-        this.listen(this.root, "pointerup", () => this.cancelLongPress());
-        this.listen(this.root, "pointercancel", () => this.cancelLongPress());
-        this.listen(this.root, "pointerleave", () => this.cancelLongPress());
+        this.listen(this.root, "pointerup", () => this.onRootPointerUp());
+        this.listen(this.root, "pointercancel", () => this.onRootPointerUp());
+        this.listen(this.root, "pointerleave", () => this.onRootPointerUp());
         this.selectionManager.registerOnSelectCallback((ids) => this.onHostSelection(ids));
 
         this.setDirection();
@@ -251,10 +261,21 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
         this.events.renderingStarted(options);
         try {
             this.locale = this.host.locale || "en-US";
+            const segment = options.dataViews?.[0]?.metadata?.segment as
+                | { done?: boolean }
+                | undefined;
             if (options.operationKind === powerbi.VisualDataChangeOperationKind.Create) {
                 this.segmentFetchExhausted = false;
+                this.segmentRequestInFlight = false;
             }
-            this.segmentRequestInFlight = false;
+            if (segment) {
+                this.segmentRequestInFlight = false;
+                if (segment.done === true) {
+                    this.segmentFetchExhausted = true;
+                }
+            } else if (options.operationKind === powerbi.VisualDataChangeOperationKind.Create) {
+                this.segmentFetchExhausted = true;
+            }
             this.viewport = {
                 width: Math.max(180, options.viewport?.width ?? 480),
                 height: Math.max(140, options.viewport?.height ?? 300)
@@ -279,8 +300,8 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
                 });
                 this.result.droppedRows = parsed.droppedRows;
                 this.result.receivedRows = parsed.receivedRows;
-                this.result.hasMoreData = Boolean(options.dataViews?.[0]?.metadata?.segment);
-                this.result.dataStatus = this.result.hasMoreData ? "partial" : "complete";
+                this.result.hasMoreData = Boolean(segment && segment.done !== true);
+                this.result.dataStatus = this.result.hasMoreData ? "partial" : this.result.dataStatus;
                 this.onHostSelection(this.selectionManager.getSelectionIds());
                 this.renderChart(this.result);
             }
@@ -338,7 +359,12 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
                                     items: enumItems([
                                         ["individuals", "Individuals"],
                                         ["run", "Run"],
+                                        ["mr", "Moving range (MR)"],
+                                        ["xbar", "Xbar"],
+                                        ["r", "Range (R)"],
+                                        ["s", "Standard deviation (S)"],
                                         ["p", "P"],
+                                        ["np", "NP"],
                                         ["u", "U"],
                                         ["c", "C"]
                                     ])
@@ -615,6 +641,7 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
             return;
         }
         this.destroyed = true;
+        this.clearRenderEventHandlers();
         for (const handler of this.eventHandlers) {
             handler.target.removeEventListener(handler.type, handler.listener);
         }
@@ -622,6 +649,7 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
         this.pointElements.clear();
         this.selectedKeys.clear();
         this.cancelLongPress();
+        this.cancelTouchTooltip();
         this.result = undefined;
         this.tooltipService.hide({ immediately: true, isTouchEvent: false });
         if (this.root.parentElement === this.element) {
@@ -632,6 +660,18 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
     private listen(target: EventTarget, type: string, listener: EventListener): void {
         target.addEventListener(type, listener);
         this.eventHandlers.push({ target, type, listener });
+    }
+
+    private listenRendered(target: EventTarget, type: string, listener: EventListener): void {
+        target.addEventListener(type, listener);
+        this.renderEventHandlers.push({ target, type, listener });
+    }
+
+    private clearRenderEventHandlers(): void {
+        for (const handler of this.renderEventHandlers) {
+            handler.target.removeEventListener(handler.type, handler.listener);
+        }
+        this.renderEventHandlers.length = 0;
     }
 
     private setDirection(): void {
@@ -733,7 +773,7 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
             Boolean(safeSetting(objects, objectName, propertyName, fallback));
         const settings: VisualSettings = {
             ...DEFAULT_SETTINGS,
-            mode: ["individuals", "run", "p", "u", "c"].includes(String(modeValue))
+            mode: SUPPORTED_MODES.includes(String(modeValue) as ChartMode)
                 ? String(modeValue) as ChartMode
                 : DEFAULT_SETTINGS.mode,
             direction: ["both", "higherIsBetter", "lowerIsBetter", "neutral"].includes(String(directionValue))
@@ -824,7 +864,7 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
         const categorical = dataView?.categorical;
         const categories: any[] = categorical?.categories ?? [];
         const values: any[] = categorical?.values ?? [];
-        const timeColumn = categories.find((column) => roleMatches(column, "Time")) ?? categories[0];
+        const timeColumn = categories.find((column) => roleMatches(column, "Time"));
         const valueColumn = values.find((column) => roleMatches(column, "Value"));
         if (!timeColumn || !valueColumn) {
             return { rows: [], receivedRows: 0, droppedRows: 0, error: "noData" };
@@ -833,7 +873,8 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
         const seriesColumn = categories.find((column) => roleMatches(column, "Series"));
         const baselineColumn = categories.find((column) => roleMatches(column, "BaselineGroup"));
         const denominatorColumn = values.find((column) => roleMatches(column, "Denominator"));
-        if ((this.settings.mode === "p" || this.settings.mode === "u") && !denominatorColumn) {
+        const subgroupSDColumn = values.find((column) => roleMatches(column, "SubgroupSD"));
+        if ((this.settings.mode === "p" || this.settings.mode === "u" || this.settings.mode === "np") && !denominatorColumn) {
             const receivedRows = Math.max(
                 timeColumn.values?.length ?? 0,
                 valueColumn.values?.length ?? 0
@@ -846,17 +887,21 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
                 column !== baselineColumn
             ),
             ...values.filter((column) =>
-                roleMatches(column, "Tooltips") && column !== valueColumn && column !== denominatorColumn
+                roleMatches(column, "Tooltips") &&
+                column !== valueColumn &&
+                column !== denominatorColumn &&
+                column !== subgroupSDColumn
             )
         ];
         const receivedRows = Math.max(
             timeColumn.values?.length ?? 0,
             valueColumn.values?.length ?? 0,
-            denominatorColumn?.values?.length ?? 0
+            denominatorColumn?.values?.length ?? 0,
+            subgroupSDColumn?.values?.length ?? 0
         );
         const rows: ChartRow[] = [];
         let droppedRows = 0;
-        const highlightColumns = [valueColumn, denominatorColumn].filter(Boolean);
+        const highlightColumns = [valueColumn, denominatorColumn, subgroupSDColumn].filter(Boolean);
         const hasAnyHighlight = highlightColumns.some((column) =>
             Array.isArray(column.highlights) &&
             column.highlights.some((value: unknown) => value !== null && value !== undefined)
@@ -865,7 +910,9 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
         for (let index = 0; index < receivedRows; index += 1) {
             const rawValue = numeric(valueColumn.values?.[index]);
             const rawDenominator = numeric(denominatorColumn?.values?.[index]);
-            if (!validateRow(this.settings.mode, rawValue, rawDenominator)) {
+            const rawSubgroupSD = numeric(subgroupSDColumn?.values?.[index]);
+            const time = textValue(timeColumn.values?.[index]);
+            if (time.trim() === "" || !validateRow(this.settings.mode, rawValue, rawDenominator, rawSubgroupSD)) {
                 droppedRows += 1;
                 continue;
             }
@@ -885,7 +932,6 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
                 builder.withCategory(baselineColumn, index);
             }
             const identity = builder.createSelectionId();
-            const time = textValue(timeColumn.values?.[index]);
             const sortKey = timeSortKey(timeColumn.values?.[index]);
             const pointKey = `${seriesLabel}\u001f${baselineLabel}\u001f${index}`;
             const tooltipData = [
@@ -901,6 +947,7 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
                 value: rawValue as number,
                 rawValue: rawValue as number,
                 denominator: rawDenominator,
+                subgroupSD: rawSubgroupSD,
                 seriesKey: seriesLabel,
                 seriesLabel,
                 baselineKey: baselineLabel,
@@ -921,6 +968,7 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
     }
 
     private renderEmpty(error: RenderingError): void {
+        this.clearRenderEventHandlers();
         this.clear(this.chartShell);
         this.clear(this.summary);
         this.clear(this.legend);
@@ -951,17 +999,28 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
         this.clear(this.alarmPanel);
         this.pointElements.clear();
         this.title.textContent = `${t("title", this.locale)} · ${modeLabel(result.mode, this.locale)}`;
-        this.status.dataset.state = result.droppedRows > 0 || result.dataStatus === "partial" ? "warning" : "ready";
-        const statusParts = result.dataStatus === "partial"
+        this.clearRenderEventHandlers();
+        this.status.dataset.state = result.droppedRows > 0 ||
+            result.dataStatus === "partial" ||
+            result.dataStatus === "empty"
+            ? "warning"
+            : "ready";
+        const renderedPoints = this.pointsForRendering(result);
+        const statusParts = result.dataStatus === "empty"
+            ? [t("insufficientData", this.locale), `${result.receivedRows} ${t("rows", this.locale)}`]
+            : result.dataStatus === "partial"
             ? [t("incompleteData", this.locale), `${result.receivedRows} ${t("rows", this.locale)}`]
             : result.droppedRows > 0
                 ? [`${t("partialData", this.locale)} ${result.droppedRows}/${result.receivedRows}`]
                 : [`${result.receivedRows} ${t("rows", this.locale)}`];
+        if (renderedPoints.length < result.points.length) {
+            statusParts.push(`${renderedPoints.length} ${t("renderedPoints", this.locale)}`);
+        }
         this.status.textContent = statusParts.join(" ");
         this.root.dataset.dataStatus = result.dataStatus;
 
         const latest = result.points[result.points.length - 1];
-        this.addSummaryItem(t("latest", this.locale), latest ? this.formatNumber(latest.value) : "—");
+        this.addSummaryItem(t("latest", this.locale), latest ? this.formatNumber(latest.plotValue) : "—");
         this.addSummaryItem(t("centerline", this.locale), latest ? this.formatNumber(latest.centerline) : "—");
         this.addSummaryItem(t("limits", this.locale), latest && result.mode !== "run"
             ? `${this.formatNumber(latest.controlLower)} / ${this.formatNumber(latest.controlUpper)}`
@@ -974,7 +1033,9 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
         svg.setAttribute("role", "img");
         svg.setAttribute("aria-label", `${modeLabel(result.mode, this.locale)} chart`);
         this.chartShell.appendChild(svg);
-        this.drawSvg(svg, result);
+        svg.dataset.renderedPoints = String(renderedPoints.length);
+        svg.dataset.receivedPoints = String(result.points.length);
+        this.drawSvg(svg, renderedPoints === result.points ? result : { ...result, points: renderedPoints });
         this.renderLegend(result);
         this.renderAlarmTable(result);
     }
@@ -989,6 +1050,61 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
         this.summary.appendChild(item);
     }
 
+    private interactionsAllowed(): boolean {
+        return this.host.hostCapabilities?.allowInteractions !== false;
+    }
+
+    private pointsForRendering(result: ChartResult): CalculatedPoint[] {
+        if (result.points.length <= MAX_RENDER_POINTS) {
+            return result.points;
+        }
+        const keep = new Set<string>();
+        const stride = Math.ceil(result.points.length / MAX_RENDER_POINTS);
+        const priority = result.points.filter((point) =>
+            point.alarms.length > 0 || this.selectedKeys.has(pointKeyFor(point))
+        );
+        const sampled = result.points.filter((point, index) =>
+            index % stride === 0 || index === result.points.length - 1
+        );
+        const prioritized = priority.slice(0, Math.floor(MAX_RENDER_POINTS / 2));
+        for (const point of prioritized) {
+            keep.add(pointKeyFor(point));
+        }
+        for (const point of sampled) {
+            if (keep.size >= MAX_RENDER_POINTS) {
+                break;
+            }
+            keep.add(pointKeyFor(point));
+        }
+        return result.points.filter((point) => keep.has(pointKeyFor(point))).slice(0, MAX_RENDER_POINTS);
+    }
+
+    private pointSegments(points: CalculatedPoint[]): CalculatedPoint[][] {
+        const segments: CalculatedPoint[][] = [];
+        let current: CalculatedPoint[] = [];
+        let baselineKey: string | undefined;
+        for (const point of points) {
+            if (current.length > 0 && point.baselineKey !== baselineKey) {
+                segments.push(current);
+                current = [];
+            }
+            current.push(point);
+            baselineKey = point.baselineKey;
+        }
+        if (current.length > 0) {
+            segments.push(current);
+        }
+        return segments;
+    }
+
+    private validSpecificationBounds(): boolean {
+        return !(
+            isFiniteNumber(this.settings.specificationLower) &&
+            isFiniteNumber(this.settings.specificationUpper) &&
+            this.settings.specificationLower > this.settings.specificationUpper
+        );
+    }
+
     private drawSvg(svg: SVGSVGElement, result: ChartResult): void {
         const compact = this.viewport.width < 420;
         const width = Math.max(260, this.viewport.width - 16);
@@ -996,16 +1112,17 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
         const margin = { left: compact ? 36 : 46, right: 14, top: 12, bottom: 27 };
         const plotWidth = Math.max(80, width - margin.left - margin.right);
         const plotHeight = Math.max(70, height - margin.top - margin.bottom);
+        const rtl = this.root.dir === "rtl";
         svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
         svg.setAttribute("preserveAspectRatio", "none");
 
         const values: number[] = [];
         for (const point of result.points) {
-            values.push(point.value);
+            values.push(point.plotValue);
             if (result.mode !== "run") {
                 values.push(point.controlLower, point.controlUpper);
             }
-            if (this.settings.showSpecificationLimits) {
+            if (this.validSpecificationBounds()) {
                 if (isFiniteNumber(this.settings.specificationLower)) {
                     values.push(this.settings.specificationLower);
                 }
@@ -1030,7 +1147,10 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
             maximum += padding;
         }
         const x = (position: number, count: number): number =>
-            margin.left + (count <= 1 ? plotWidth / 2 : position * plotWidth / (count - 1));
+            margin.left + (rtl ? plotWidth : 0) +
+            (count <= 1
+                ? plotWidth / 2
+                : (rtl ? -1 : 1) * position * plotWidth / (count - 1));
         const y = (value: number): number =>
             margin.top + (maximum - value) * plotHeight / (maximum - minimum);
 
@@ -1047,16 +1167,16 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
                 svg.appendChild(grid);
                 const label = this.createSvg("text");
                 label.classList.add("atlyn-axis-label");
-                label.setAttribute("x", String(margin.left - 6));
+                label.setAttribute("x", String(rtl ? width - margin.right + 6 : margin.left - 6));
                 label.setAttribute("y", String(yPosition + 3));
-                label.setAttribute("text-anchor", "end");
+                label.setAttribute("text-anchor", rtl ? "start" : "end");
                 label.textContent = this.formatNumber(value);
                 svg.appendChild(label);
             }
             const axis = this.createSvg("line");
             axis.classList.add("atlyn-axis");
-            axis.setAttribute("x1", String(margin.left));
-            axis.setAttribute("x2", String(margin.left));
+            axis.setAttribute("x1", String(rtl ? width - margin.right : margin.left));
+            axis.setAttribute("x2", String(rtl ? width - margin.right : margin.left));
             axis.setAttribute("y1", String(margin.top));
             axis.setAttribute("y2", String(height - margin.bottom));
             svg.appendChild(axis);
@@ -1067,25 +1187,27 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
             const seriesIndex = result.series.indexOf(seriesKey);
             const pointX = new Map<string, number>();
             points.forEach((point, index) => pointX.set(pointKeyFor(point), x(index, points.length)));
-            if (points.length > 1) {
-                const line = this.createSvg("path");
-                line.classList.add("atlyn-series-line", `series-${seriesIndex % 4}`);
-                line.setAttribute("d", this.pathFor(points, pointX, y, (point) => point.value));
-                line.setAttribute("data-series-key", seriesKey);
-                svg.appendChild(line);
-            }
-            if (result.mode !== "run" && this.settings.showBands) {
-                this.drawBand(svg, points, pointX, y, "lowerOne", "upperOne", "band-one");
-                this.drawBand(svg, points, pointX, y, "lowerTwo", "upperTwo", "band-two");
-            }
-            if (result.mode !== "run" && this.settings.showControlLimits) {
-                this.drawBand(svg, points, pointX, y, "controlLower", "controlUpper", "band-three");
-            }
-            if (this.settings.showCenterline) {
-                const centerline = this.createSvg("path");
-                centerline.classList.add("atlyn-centerline", `line-${this.settings.centerlineLineStyle}`);
-                centerline.setAttribute("d", this.pathFor(points, pointX, y, (point) => point.centerline));
-                svg.appendChild(centerline);
+            for (const segment of this.pointSegments(points)) {
+                if (segment.length > 1) {
+                    const line = this.createSvg("path");
+                    line.classList.add("atlyn-series-line", `series-${seriesIndex % 4}`);
+                    line.setAttribute("d", this.pathFor(segment, pointX, y, (point) => point.plotValue));
+                    line.setAttribute("data-series-key", seriesKey);
+                    svg.appendChild(line);
+                }
+                if (result.mode !== "run" && this.settings.showBands) {
+                    this.drawBand(svg, segment, pointX, y, "lowerOne", "upperOne", "band-one");
+                    this.drawBand(svg, segment, pointX, y, "lowerTwo", "upperTwo", "band-two");
+                }
+                if (result.mode !== "run" && this.settings.showControlLimits) {
+                    this.drawBand(svg, segment, pointX, y, "controlLower", "controlUpper", "band-three");
+                }
+                if (this.settings.showCenterline) {
+                    const centerline = this.createSvg("path");
+                    centerline.classList.add("atlyn-centerline", `line-${this.settings.centerlineLineStyle}`);
+                    centerline.setAttribute("d", this.pathFor(segment, pointX, y, (point) => point.centerline));
+                    svg.appendChild(centerline);
+                }
             }
             for (const point of points) {
                 const key = pointKeyFor(point);
@@ -1112,40 +1234,47 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
                 }
                 circle.setAttribute("data-point-key", key);
                 circle.setAttribute("cx", String(pointX.get(key) ?? 0));
-                circle.setAttribute("cy", String(y(point.value)));
+                circle.setAttribute("cy", String(y(point.plotValue)));
                 circle.setAttribute("r", String(compact ? Math.min(this.settings.pointSize, 4) : this.settings.pointSize));
-                circle.setAttribute("tabindex", "0");
-                circle.setAttribute("role", "img");
+                circle.setAttribute("tabindex", this.pointElements.size === 0 ? "0" : "-1");
+                circle.setAttribute("role", "button");
+                circle.setAttribute("aria-selected", this.selectedKeys.has(key) ? "true" : "false");
                 circle.setAttribute("aria-label", this.pointAriaLabel(point, result));
-                this.listen(circle, "click", (event) => {
+                this.listenRendered(circle, "click", (event) => {
                     event.stopPropagation();
                     this.selectPoint(point, this.isMultiSelect(event as MouseEvent));
                 });
-                this.listen(circle, "contextmenu", (event) => {
+                this.listenRendered(circle, "contextmenu", (event) => {
                     event.preventDefault();
                     event.stopPropagation();
                     this.showContextMenu(point, event as MouseEvent);
                 });
-                this.listen(circle, "mouseenter", (event) => this.showTooltip(point, event as MouseEvent));
-                this.listen(circle, "pointerenter", (event) => {
+                this.listenRendered(circle, "mouseenter", (event) => this.showTooltip(point, event as MouseEvent));
+                this.listenRendered(circle, "pointerenter", (event) => {
                     if ((event as PointerEvent).pointerType !== "touch") {
                         this.showTooltip(point, event as PointerEvent);
                     }
                 });
-                this.listen(circle, "focus", (event) => this.showTooltip(point, event as FocusEvent));
-                this.listen(circle, "mouseleave", () => this.hideTooltip(false));
-                this.listen(circle, "pointerleave", (event) => {
+                this.listenRendered(circle, "mousemove", (event) => this.moveTooltip(point, event as MouseEvent));
+                this.listenRendered(circle, "pointermove", (event) => {
+                    if ((event as PointerEvent).pointerType !== "touch") {
+                        this.moveTooltip(point, event as PointerEvent);
+                    }
+                });
+                this.listenRendered(circle, "focus", (event) => this.showTooltip(point, event as FocusEvent));
+                this.listenRendered(circle, "mouseleave", () => this.hideTooltip(false));
+                this.listenRendered(circle, "pointerleave", (event) => {
                     if ((event as PointerEvent).pointerType !== "touch") {
                         this.hideTooltip(false);
                     }
                 });
-                this.listen(circle, "blur", () => this.hideTooltip(false));
+                this.listenRendered(circle, "blur", () => this.hideTooltip(false));
                 svg.appendChild(circle);
                 this.pointElements.set(key, circle);
             }
         }
 
-        if (this.settings.showSpecificationLimits) {
+        if (this.settings.showSpecificationLimits && this.validSpecificationBounds()) {
             this.drawSpecificationLine(
                 svg,
                 this.settings.specificationLower,
@@ -1319,7 +1448,7 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
                 alarmLabel(alarm, this.locale),
                 alarm.seriesLabel,
                 `${alarm.windowStart + 1}-${alarm.windowEnd + 1}`,
-                point ? this.formatNumber(point.value) : this.formatNumber(alarm.value),
+                point ? this.formatNumber(point.plotValue) : this.formatNumber(alarm.plotValue),
                 alarm.side,
                 this.formatNumber(alarm.limit),
                 alarm.baselineLabel,
@@ -1369,14 +1498,20 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
         const denominator = point.denominator === undefined
             ? ""
             : `, ${t("denominator", this.locale)} ${this.formatNumber(point.denominator)}`;
-        return `${t("time", this.locale)} ${point.time}, ${t("value", this.locale)} ${this.formatNumber(point.value)}${denominator}, ${t("centerline", this.locale)} ${this.formatNumber(point.centerline)}.${alarmText}`;
+        const raw = point.denominator === undefined
+            ? ""
+            : `, ${t("rawValue", this.locale)} ${this.formatNumber(point.rawValue)}`;
+        return `${t("time", this.locale)} ${point.time}, ${t("plotValue", this.locale)} ${this.formatNumber(point.plotValue)}${raw}${denominator}, ${t("centerline", this.locale)} ${this.formatNumber(point.centerline)}.${alarmText}`;
     }
 
     private alarmAriaLabel(alarm: Alarm): string {
-        return `${alarmLabel(alarm, this.locale)}, ${t("series", this.locale)} ${alarm.seriesLabel}, ${t("point", this.locale)} ${alarm.windowStart + 1}-${alarm.windowEnd + 1}, ${t("limit", this.locale)} ${this.formatNumber(alarm.limit)}. ${alarm.explanation}`;
+        return `${alarmLabel(alarm, this.locale)}, ${t("series", this.locale)} ${alarm.seriesLabel}, ${t("point", this.locale)} ${alarm.windowStart + 1}-${alarm.windowEnd + 1}, ${t("plotValue", this.locale)} ${this.formatNumber(alarm.plotValue)}, ${t("limit", this.locale)} ${this.formatNumber(alarm.limit)}. ${alarm.explanation}`;
     }
 
     private onRootClick(event: Event): void {
+        if (!this.interactionsAllowed()) {
+            return;
+        }
         const target = event.target;
         if (!pointElement(target) &&
             !(target instanceof HTMLTableRowElement) &&
@@ -1386,6 +1521,9 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
     }
 
     private onRootContextMenu(event: Event): void {
+        if (!this.interactionsAllowed()) {
+            return;
+        }
         const mouseEvent = event as MouseEvent;
         if (pointElement(mouseEvent.target)) {
             return;
@@ -1395,6 +1533,9 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
     }
 
     private onRootPointerDown(event: Event): void {
+        if (!this.interactionsAllowed()) {
+            return;
+        }
         const pointerEvent = event as PointerEvent;
         if (pointerEvent.pointerType !== "touch") {
             return;
@@ -1405,13 +1546,30 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
             ? this.result?.points.find((candidate) => pointKeyFor(candidate) === pointKey)
             : undefined;
         if (point) {
-            this.showTooltip(point, pointerEvent);
+            this.cancelTouchTooltip();
+            this.touchTooltipTimer = setTimeout(() => {
+                this.showTooltip(point, pointerEvent);
+                this.touchTooltipTimer = undefined;
+            }, 300);
         }
         this.cancelLongPress();
         this.longPressTimer = setTimeout(() => {
             this.showContextMenu(point, pointerEvent);
             this.longPressTimer = undefined;
         }, 600);
+    }
+
+    private onRootPointerUp(): void {
+        this.cancelLongPress();
+        this.cancelTouchTooltip();
+        this.hideTooltip(true);
+    }
+
+    private cancelTouchTooltip(): void {
+        if (this.touchTooltipTimer !== undefined) {
+            clearTimeout(this.touchTooltipTimer);
+            this.touchTooltipTimer = undefined;
+        }
     }
 
     private cancelLongPress(): void {
@@ -1422,6 +1580,9 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
     }
 
     private onRootKeyDown(event: Event): void {
+        if (!this.interactionsAllowed()) {
+            return;
+        }
         const keyboardEvent = event as KeyboardEvent;
         if (keyboardEvent.key === "Escape") {
             keyboardEvent.preventDefault();
@@ -1458,7 +1619,7 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
     }
 
     private nextPointKey(current: string | undefined, delta: number): string {
-        const keys = this.result?.points.map(pointKeyFor) ?? [];
+        const keys = [...this.pointElements.keys()];
         if (keys.length === 0) {
             return "";
         }
@@ -1468,7 +1629,14 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
     }
 
     private focusPoint(key: string): void {
-        this.pointElements.get(key)?.focus();
+        const target = this.pointElements.get(key);
+        if (!target) {
+            return;
+        }
+        for (const element of this.pointElements.values()) {
+            element.setAttribute("tabindex", element === target ? "0" : "-1");
+        }
+        target.focus();
     }
 
     private selectAlarm(alarm: Alarm): void {
@@ -1480,6 +1648,9 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
     }
 
     private selectPoint(point: CalculatedPoint, multiSelect: boolean): void {
+        if (!this.interactionsAllowed()) {
+            return;
+        }
         if (!multiSelect) {
             this.selectedKeys.clear();
         }
@@ -1504,6 +1675,7 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
     private updateSelectionClasses(): void {
         for (const [key, element] of this.pointElements) {
             element.classList.toggle("is-selected", this.selectedKeys.has(key));
+            element.setAttribute("aria-selected", this.selectedKeys.has(key) ? "true" : "false");
         }
     }
 
@@ -1544,13 +1716,16 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
     }
 
     private showContextMenu(point: CalculatedPoint | undefined, event: MouseEvent): void {
+        if (!this.interactionsAllowed()) {
+            return;
+        }
         const position = { x: event.clientX, y: event.clientY };
         const selectionId = point?.identity ?? this.emptySelectionId;
         void this.selectionManager.showContextMenu(selectionId, position);
     }
 
     private showTooltip(point: CalculatedPoint, event: MouseEvent | FocusEvent | PointerEvent): void {
-        if (!this.tooltipService.enabled()) {
+        if (!this.interactionsAllowed() || !this.tooltipService.enabled()) {
             return;
         }
         const alarms = this.result?.alarms.filter((alarm) =>
@@ -1558,7 +1733,7 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
         ) ?? [];
         const dataItems = [
             { displayName: t("time", this.locale), value: point.time },
-            { displayName: t("value", this.locale), value: this.formatNumber(point.value) },
+            { displayName: t("value", this.locale), value: this.formatNumber(point.plotValue) },
             ...(point.denominator === undefined
                 ? []
                 : [
@@ -1570,6 +1745,12 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
                     },
                     { displayName: t("denominator", this.locale), value: this.formatNumber(point.denominator) }
                 ]),
+            ...(point.denominator === undefined
+                ? []
+                : [{ displayName: t("rawValue", this.locale), value: this.formatNumber(point.rawValue) }]),
+            ...(point.subgroupSD === undefined
+                ? []
+                : [{ displayName: t("subgroupSD", this.locale), value: this.formatNumber(point.subgroupSD) }]),
             ...(point.seriesLabel === "All" ? [] : [{ displayName: t("series", this.locale), value: point.seriesLabel }]),
             ...(point.baselineLabel === "Baseline" ? [] : [{ displayName: t("baseline", this.locale), value: point.baselineLabel }]),
             ...point.tooltipData,
@@ -1583,10 +1764,10 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
             { displayName: t("sigma", this.locale), value: this.formatNumber(point.sigma) },
             { displayName: t("formula", this.locale), value: this.result?.formula ?? "" },
             { displayName: "Format string", value: point.formatString ?? "default" },
-            ...(isFiniteNumber(this.settings.specificationLower)
+            ...(this.validSpecificationBounds() && isFiniteNumber(this.settings.specificationLower)
                 ? [{ displayName: t("specificationLower", this.locale), value: this.formatNumber(this.settings.specificationLower) }]
                 : []),
-            ...(isFiniteNumber(this.settings.specificationUpper)
+            ...(this.validSpecificationBounds() && isFiniteNumber(this.settings.specificationUpper)
                 ? [{ displayName: t("specificationUpper", this.locale), value: this.formatNumber(this.settings.specificationUpper) }]
                 : []),
             ...(point.specificationStatus === "notConfigured"
@@ -1607,8 +1788,24 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
         });
     }
 
+    private moveTooltip(point: CalculatedPoint, event: MouseEvent | PointerEvent): void {
+        if (!this.interactionsAllowed() || !this.tooltipService.enabled()) {
+            return;
+        }
+        const target = event.target instanceof Element ? event.target.getBoundingClientRect() : undefined;
+        const clientX = "clientX" in event ? event.clientX : target?.left ?? 0;
+        const clientY = "clientY" in event ? event.clientY : target?.top ?? 0;
+        this.tooltipService.move({
+            identities: point.identity ? [point.identity] : [],
+            coordinates: [clientX, clientY],
+            isTouchEvent: "pointerType" in event && event.pointerType === "touch"
+        });
+    }
+
     private hideTooltip(isTouchEvent: boolean): void {
-        this.tooltipService.hide({ immediately: false, isTouchEvent });
+        if (this.tooltipService.enabled()) {
+            this.tooltipService.hide({ immediately: false, isTouchEvent });
+        }
     }
 
     private formatNumber(value: number | undefined): string {

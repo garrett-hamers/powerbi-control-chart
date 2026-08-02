@@ -99,6 +99,36 @@ describe("deterministic control rules", () => {
         expect(trend?.side).toBe("both");
     });
 
+    test("trend windows close at the reversal and retain the turning point", () => {
+        const alarms = evaluateRules([
+            calculatedPoint(0, 1),
+            calculatedPoint(1, 2),
+            calculatedPoint(2, 3),
+            calculatedPoint(3, 2),
+            calculatedPoint(4, 1),
+            calculatedPoint(5, 0)
+        ], { ...options, trendLength: 4 });
+        expect(alarms.filter((alarm) => alarm.rule === "trend")).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({ pointIndices: [2, 3, 4, 5], windowStart: 2, windowEnd: 5 })
+            ])
+        );
+    });
+
+    test("rule lengths fall back safely when callers omit them", () => {
+        const alarms = evaluateRules([
+            calculatedPoint(0, 1),
+            calculatedPoint(1, 2),
+            calculatedPoint(2, 3),
+            calculatedPoint(3, 4)
+        ], {
+            sigmaMultiplier: 3,
+            resetOnBaselineChange: true,
+            mode: "run"
+        });
+        expect(alarms).toHaveLength(0);
+    });
+
     test("baseline boundary resets sequences unless joining is explicit", () => {
         const points = [
             calculatedPoint(0, 1, 0, 1, "before"),

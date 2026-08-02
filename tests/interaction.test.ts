@@ -134,6 +134,8 @@ describe("visual interactions", () => {
             expect.objectContaining({ displayName: "Lower control limit" }),
             expect.objectContaining({ displayName: "Upper control limit" })
         ]));
+        point.dispatchEvent(new MouseEvent("mousemove", { bubbles: true, clientX: 20, clientY: 24 }));
+        expect(tooltipService.move).toHaveBeenCalled();
     });
 
     test("touch long press opens a context menu and segment status stays explicit", () => {
@@ -174,6 +176,12 @@ describe("visual interactions", () => {
             { objectName: "typography", propertyName: "fontSize" },
             { objectName: "points", propertyName: "size" }
         ]));
+        const modeSlice = model.cards
+            .flatMap((card) => card.groups.flatMap((group) => group.slices))
+            .find((slice: any) => slice.control.properties.descriptor.propertyName === "mode") as any;
+        expect(modeSlice.control.properties.items.map((item: any) => item.value)).toEqual(
+            expect.arrayContaining(["mr", "xbar", "r", "s", "p", "np", "u", "c"])
+        );
     });
 
     test("uses typed formatting values and ignores unsafe configured colors", () => {
@@ -232,5 +240,46 @@ describe("visual interactions", () => {
         expect(element.querySelectorAll("circle.is-dimmed")).toHaveLength(2);
         expect(element.querySelector(".atlyn-formula")?.textContent).toContain("CL");
         visual.destroy();
+    });
+
+    test("uses a roving focus target and exposes normalized/raw units", () => {
+        const { element } = constructVisual("p", [1, 4], [10, 20]);
+        const points = Array.from(element.querySelectorAll("svg circle")) as SVGCircleElement[];
+        expect(points.map((point) => point.getAttribute("tabindex"))).toEqual(["0", "-1"]);
+        expect(points[0].getAttribute("aria-label")).toContain("Plot value");
+        expect(points[0].getAttribute("aria-label")).toContain("Raw value");
+        points[0].focus();
+        points[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+        expect(document.activeElement).toBe(points[1]);
+        expect(points[0].getAttribute("tabindex")).toBe("-1");
+        expect(points[1].getAttribute("tabindex")).toBe("0");
+    });
+
+    test("gates all interactions when the host disables interactions", () => {
+        const element = document.createElement("div");
+        document.body.appendChild(element);
+        const mocked = makeHost();
+        mocked.host.hostCapabilities.allowInteractions = false;
+        const visual = new Visual({ element, host: mocked.host } as any);
+        visual.update({
+            dataViews: [visualDataView([1, 2, 3])],
+            viewport: { width: 600, height: 400 },
+            type: 2
+        } as any);
+        const point = element.querySelector("svg circle") as SVGCircleElement;
+        point.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        point.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, clientX: 1, clientY: 1 }));
+        expect(mocked.selectionManager.select).not.toHaveBeenCalled();
+        expect(mocked.selectionManager.showContextMenu).not.toHaveBeenCalled();
+        visual.destroy();
+    });
+
+    test("bounds SVG work for large data without changing completeness", () => {
+        const values = Array.from({ length: 2200 }, (_, index) => index % 10);
+        const { element } = constructVisual("individuals", values);
+        const chart = element.querySelector("svg") as SVGSVGElement;
+        expect(Number(chart.dataset.receivedPoints)).toBe(2200);
+        expect(Number(chart.dataset.renderedPoints)).toBeLessThanOrEqual(2000);
+        expect(element.querySelector(".atlyn-control-chart")?.getAttribute("data-data-status")).toBe("complete");
     });
 });

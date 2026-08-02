@@ -22,3 +22,5 @@ jobs:
       - run: npm run eslint
       - run: npm run audit
       - run: npm run certification-audit
+      - run: npm run package
+      - run: npm run source-parity-audit

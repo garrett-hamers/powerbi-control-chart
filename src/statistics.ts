@@ -13,6 +13,7 @@ import { evaluateRules } from "./rules";
 const INDIVIDUALS_CONSTANT = 1.128;
 const DEFAULT_SIGMA_MULTIPLIER = 3;
 const DEFAULT_TWO_SIGMA_MULTIPLIER = 2;
+const DEFAULT_SUBGROUP_SIZE = 5;
 
 function finite(value: unknown): value is number {
     return typeof value === "number" && Number.isFinite(value);
@@ -20,6 +21,13 @@ function finite(value: unknown): value is number {
 
 function mean(values: number[]): number {
     return values.length === 0 ? 0 : values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function weightedMean(values: Array<{ value: number; weight: number }>): number {
+    const totalWeight = values.reduce((sum, item) => sum + item.weight, 0);
+    return totalWeight > 0
+        ? values.reduce((sum, item) => sum + item.value * item.weight, 0) / totalWeight
+        : mean(values.map((item) => item.value));
 }
 
 function median(values: number[]): number {
@@ -39,7 +47,70 @@ function rawValue(row: ChartRow): number {
     return row.rawValue ?? row.value;
 }
 
-function createBands(centerline: number, sigma: number, controlMultiplier: number): PointStatistics {
+function subgroupSize(row: ChartRow): number {
+    return finite(row.denominator) && row.denominator >= 2
+        ? row.denominator
+        : DEFAULT_SUBGROUP_SIZE;
+}
+
+function c4(size: number): number {
+    const rounded = Math.max(2, Math.min(10, Math.round(size)));
+    const values: Record<number, number> = {
+        2: 0.79788456,
+        3: 0.88622693,
+        4: 0.92131773,
+        5: 0.93998560,
+        6: 0.95153286,
+        7: 0.95936879,
+        8: 0.96503046,
+        9: 0.96931070,
+        10: 0.97265927
+    };
+    return values[rounded] ?? 1 - 1 / (4 * rounded) - 7 / (32 * rounded * rounded);
+}
+
+function d2(size: number): number {
+    const rounded = Math.max(2, Math.min(10, Math.round(size)));
+    const values: Record<number, number> = {
+        2: 1.128,
+        3: 1.693,
+        4: 2.059,
+        5: 2.326,
+        6: 2.534,
+        7: 2.704,
+        8: 2.847,
+        9: 2.970,
+        10: 3.078
+    };
+    return values[rounded] ?? Math.sqrt(rounded);
+}
+
+function d3(size: number): number {
+    const rounded = Math.max(2, Math.min(10, Math.round(size)));
+    return ({ 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0.076, 8: 0.136, 9: 0.184, 10: 0.223 } as Record<number, number>)[rounded] ?? 0;
+}
+
+function d4(size: number): number {
+    const rounded = Math.max(2, Math.min(10, Math.round(size)));
+    return ({ 2: 3.267, 3: 2.574, 4: 2.282, 5: 2.114, 6: 2.004, 7: 1.924, 8: 1.864, 9: 1.816, 10: 1.777 } as Record<number, number>)[rounded] ?? 1 + 3 / d2(rounded);
+}
+
+function sConstants(size: number): { lower: number; upper: number } {
+    const c4Value = c4(size);
+    const ratio = Math.sqrt(Math.max(1 - c4Value * c4Value, 0)) / c4Value;
+    return {
+        lower: Math.max(0, 1 - 3 * ratio),
+        upper: 1 + 3 * ratio
+    };
+}
+
+function createBands(
+    centerline: number,
+    sigma: number,
+    controlMultiplier: number,
+    controlLower = centerline - controlMultiplier * sigma,
+    controlUpper = centerline + controlMultiplier * sigma
+): PointStatistics {
     return {
         centerline,
         sigma,
@@ -49,8 +120,10 @@ function createBands(centerline: number, sigma: number, controlMultiplier: numbe
         upperTwo: centerline + 2 * sigma,
         lowerThree: centerline - 3 * sigma,
         upperThree: centerline + 3 * sigma,
-        controlLower: centerline - controlMultiplier * sigma,
-        controlUpper: centerline + controlMultiplier * sigma
+        controlLower,
+        controlUpper,
+        ruleLower: controlLower,
+        ruleUpper: controlUpper
     };
 }
 
@@ -61,8 +134,20 @@ function individualsStatistics(values: number[], controlMultiplier: number): Poi
     return createBands(centerline, sigma, controlMultiplier);
 }
 
+function movingRangeStatistics(values: number[], controlMultiplier: number): PointStatistics {
+    const centerline = mean(values);
+    const sigma = values.length === 0 ? 0 : centerline / d2(2);
+    const controlSigma = centerline * (d4(2) - 1) / 3;
+    return createBands(
+        centerline,
+        sigma,
+        controlMultiplier,
+        Math.max(0, centerline - controlMultiplier * controlSigma),
+        centerline + controlMultiplier * controlSigma
+    );
+}
+
 function runStatistics(values: number[], controlMultiplier: number): PointStatistics {
-    // A conventional run chart has a median centerline and no estimated control limits.
     return createBands(median(values), 0, controlMultiplier);
 }
 
@@ -85,7 +170,46 @@ function cStatistics(rows: ChartRow[], controlMultiplier: number): PointStatisti
     return createBands(centerline, Math.sqrt(Math.max(centerline, 0)), controlMultiplier);
 }
 
-function clampLimits(mode: ChartMode, statistics: PointStatistics): PointStatistics {
+function npStatistics(rows: ChartRow[], controlMultiplier: number): PointStatistics {
+    const denominatorTotal = rows.reduce((sum, row) => sum + (row.denominator ?? 0), 0);
+    const numeratorTotal = rows.reduce((sum, row) => sum + rawValue(row), 0);
+    const centerline = denominatorTotal > 0 ? numeratorTotal / denominatorTotal : 0;
+    return createBands(centerline, Math.sqrt(Math.max(centerline * (1 - centerline), 0)), controlMultiplier);
+}
+
+function xbarStatistics(rows: ChartRow[], controlMultiplier: number): PointStatistics {
+    const weighted = rows.map((row) => ({ value: row.value, weight: subgroupSize(row) }));
+    const centerline = weightedMean(weighted);
+    const subgroupSDs = rows.map((row) => row.subgroupSD).filter(finite);
+    const averageSize = mean(rows.map(subgroupSize));
+    let sigma: number;
+    if (subgroupSDs.length === rows.length && subgroupSDs.length > 0) {
+        sigma = mean(subgroupSDs) / (c4(averageSize) * Math.sqrt(averageSize));
+    } else {
+        const movingRanges = rows.slice(1).map((row, index) => Math.abs(row.value - rows[index].value));
+        sigma = movingRanges.length > 0
+            ? mean(movingRanges) / (INDIVIDUALS_CONSTANT * Math.sqrt(averageSize))
+            : 0;
+    }
+    return createBands(centerline, sigma, controlMultiplier);
+}
+
+function rStatistics(rows: ChartRow[], controlMultiplier: number): PointStatistics {
+    const centerline = mean(rows.map((row) => row.value));
+    const size = mean(rows.map(subgroupSize));
+    return createBands(centerline, centerline / d2(size), controlMultiplier, d3(size) * centerline, d4(size) * centerline);
+}
+
+function sStatistics(rows: ChartRow[], controlMultiplier: number): PointStatistics {
+    const centerline = mean(rows.map((row) => row.value));
+    const size = mean(rows.map(subgroupSize));
+    const c4Value = c4(size);
+    const sigma = centerline * Math.sqrt(Math.max(1 - c4Value * c4Value, 0)) / c4Value;
+    const constants = sConstants(size);
+    return createBands(centerline, sigma, controlMultiplier, constants.lower * centerline, constants.upper * centerline);
+}
+
+function clampLimits(mode: ChartMode, statistics: PointStatistics, maximum?: number): PointStatistics {
     if (mode === "p") {
         return {
             ...statistics,
@@ -96,16 +220,39 @@ function clampLimits(mode: ChartMode, statistics: PointStatistics): PointStatist
             lowerThree: Math.max(0, statistics.lowerThree),
             upperThree: Math.min(1, statistics.upperThree),
             controlLower: Math.max(0, statistics.controlLower),
-            controlUpper: Math.min(1, statistics.controlUpper)
+            controlUpper: Math.min(1, statistics.controlUpper),
+            ruleLower: Math.max(0, statistics.ruleLower ?? statistics.controlLower),
+            ruleUpper: Math.min(1, statistics.ruleUpper ?? statistics.controlUpper)
         };
     }
-    if (mode === "u" || mode === "c") {
+    if (mode === "np") {
         return {
             ...statistics,
             lowerOne: Math.max(0, statistics.lowerOne),
             lowerTwo: Math.max(0, statistics.lowerTwo),
             lowerThree: Math.max(0, statistics.lowerThree),
-            controlLower: Math.max(0, statistics.controlLower)
+            controlLower: Math.max(0, statistics.controlLower),
+            ruleLower: Math.max(0, statistics.ruleLower ?? statistics.controlLower),
+            ...(maximum === undefined
+                ? {}
+                : {
+                    upperOne: Math.min(maximum, statistics.upperOne),
+                    upperTwo: Math.min(maximum, statistics.upperTwo),
+                    upperThree: Math.min(maximum, statistics.upperThree),
+                    controlUpper: Math.min(maximum, statistics.controlUpper),
+                    ruleUpper: Math.min(maximum, statistics.ruleUpper ?? statistics.controlUpper)
+                })
+        };
+    }
+    if (mode === "mr" || mode === "u" || mode === "c" || mode === "r" || mode === "s") {
+        return {
+            ...statistics,
+            lowerOne: Math.max(0, statistics.lowerOne),
+            lowerTwo: Math.max(0, statistics.lowerTwo),
+            lowerThree: Math.max(0, statistics.lowerThree),
+            controlLower: Math.max(0, statistics.controlLower),
+            ruleLower: Math.max(0, statistics.ruleLower ?? statistics.controlLower),
+            ruleUpper: statistics.ruleUpper
         };
     }
     return statistics;
@@ -119,14 +266,24 @@ function baseStatistics(
     switch (mode) {
         case "individuals":
             return individualsStatistics(rows.map((row) => row.value), controlMultiplier);
+        case "mr":
+            return movingRangeStatistics(rows.map((row) => row.value), controlMultiplier);
         case "run":
             return runStatistics(rows.map((row) => row.value), controlMultiplier);
         case "p":
             return pStatistics(rows, controlMultiplier);
+        case "np":
+            return npStatistics(rows, controlMultiplier);
         case "u":
             return uStatistics(rows, controlMultiplier);
         case "c":
             return cStatistics(rows, controlMultiplier);
+        case "xbar":
+            return xbarStatistics(rows, controlMultiplier);
+        case "r":
+            return rStatistics(rows, controlMultiplier);
+        case "s":
+            return sStatistics(rows, controlMultiplier);
     }
 }
 
@@ -134,7 +291,8 @@ function pointStatistics(
     mode: ChartMode,
     row: ChartRow,
     segmentStatistics: PointStatistics,
-    controlMultiplier: number
+    controlMultiplier: number,
+    averageSubgroupSize?: number
 ): PointStatistics {
     if (mode === "p") {
         const denominator = row.denominator ?? 0;
@@ -150,6 +308,37 @@ function pointStatistics(
             : 0;
         return clampLimits(mode, createBands(segmentStatistics.centerline, sigma, controlMultiplier));
     }
+    if (mode === "np") {
+        const denominator = row.denominator ?? 0;
+        const centerline = segmentStatistics.centerline * denominator;
+        const sigma = Math.sqrt(Math.max(segmentStatistics.centerline * (1 - segmentStatistics.centerline) * denominator, 0));
+        return clampLimits(mode, createBands(centerline, sigma, controlMultiplier), denominator);
+    }
+    if (mode === "xbar") {
+        const averageSize = subgroupSize(row);
+        const sigma = finite(row.subgroupSD)
+            ? row.subgroupSD / (c4(averageSize) * Math.sqrt(averageSize))
+            : segmentStatistics.sigma * Math.sqrt(
+                (averageSubgroupSize ?? averageSize) / averageSize
+            );
+        return createBands(segmentStatistics.centerline, sigma, controlMultiplier);
+    }
+    if (mode === "r") {
+        const size = subgroupSize(row);
+        const centerline = segmentStatistics.centerline;
+        return clampLimits(
+            mode,
+            createBands(centerline, centerline / d2(size), controlMultiplier, d3(size) * centerline, d4(size) * centerline)
+        );
+    }
+    if (mode === "s") {
+        const size = subgroupSize(row);
+        const centerline = segmentStatistics.centerline;
+        const c4Value = c4(size);
+        const sigma = centerline * Math.sqrt(Math.max(1 - c4Value * c4Value, 0)) / c4Value;
+        const constants = sConstants(size);
+        return clampLimits(mode, createBands(centerline, sigma, controlMultiplier, constants.lower * centerline, constants.upper * centerline));
+    }
     return clampLimits(mode, segmentStatistics);
 }
 
@@ -159,69 +348,35 @@ function language(locale: string | undefined): string {
 
 function formulaFor(mode: ChartMode, locale?: string): string {
     const localized = language(locale);
-    if (localized === "es") {
-        switch (mode) {
-            case "individuals":
-                return "LC = media(x); MR = |x[i] - x[i-1]|; sigma = media(MR) / 1.128; límites = LC +/- k sigma";
-            case "run":
-                return "Gráfico de corridas convencional: LC = mediana(x); sin límites de control estadístico; solo reglas de cambio y tendencia";
-            case "p":
-                return "p[i] = numerador[i] / denominador[i]; pbar = suma(numerador) / suma(denominador); sigma[i] = sqrt(pbar(1-pbar) / denominador[i])";
-            case "u":
-                return "u[i] = conteo[i] / exposición[i]; ubar = suma(conteo) / suma(exposición); sigma[i] = sqrt(ubar / exposición[i])";
-            case "c":
-                return "LC = media(conteo); sigma = sqrt(LC); LCL = max(0, LC - k sigma)";
-        }
+    if (localized === "es" && mode === "run") {
+        return "Gráfico de corridas convencional: LC = mediana(x); sin límites de control estadístico; solo reglas de cambio y tendencia";
     }
-    if (localized === "fr") {
-        switch (mode) {
-            case "individuals":
-                return "LC = moyenne(x); MR = |x[i] - x[i-1]|; sigma = moyenne(MR) / 1.128; limites = LC +/- k sigma";
-            case "run":
-                return "Carte de tendances conventionnelle : LC = médiane(x); pas de limites de contrôle statistique; règles de décalage et de tendance uniquement";
-            case "p":
-                return "p[i] = numérateur[i] / dénominateur[i]; pbar = somme(numérateur) / somme(dénominateur); sigma[i] = sqrt(pbar(1-pbar) / dénominateur[i])";
-            case "u":
-                return "u[i] = compte[i] / exposition[i]; ubar = somme(compte) / somme(exposition); sigma[i] = sqrt(ubar / exposition[i])";
-            case "c":
-                return "LC = moyenne(compte); sigma = sqrt(LC); LCL = max(0, LC - k sigma)";
-        }
+    if (localized === "fr" && mode === "run") {
+        return "Carte de tendances conventionnelle : LC = médiane(x); pas de limites de contrôle de statistique; règles de décalage et de tendance uniquement";
     }
-    if (localized === "de") {
-        switch (mode) {
-            case "individuals":
-                return "ML = Mittelwert(x); MR = |x[i] - x[i-1]|; Sigma = Mittelwert(MR) / 1.128; Grenzen = ML +/- k Sigma";
-            case "run":
-                return "Konventionelle Run-Karte: ML = Median(x); keine statistischen Regelgrenzen; nur Verschiebungs- und Trendregeln";
-            case "p":
-                return "p[i] = Zähler[i] / Nenner[i]; pbar = Summe(Zähler) / Summe(Nenner); Sigma[i] = sqrt(pbar(1-pbar) / Nenner[i])";
-            case "u":
-                return "u[i] = Anzahl[i] / Exposition[i]; ubar = Summe(Anzahl) / Summe(Exposition); Sigma[i] = sqrt(ubar / Exposition[i])";
-            case "c":
-                return "ML = Mittelwert(Anzahl); Sigma = sqrt(ML); LCL = max(0, ML - k Sigma)";
-        }
+    if (localized === "de" && mode === "run") {
+        return "Konventionelle Run-Karte: ML = Median(x); keine statistischen Regelgrenzen; nur Verschiebungs- und Trendregeln";
     }
-    if (localized === "ar") {
-        switch (mode) {
-            case "individuals":
-                return "CL = متوسط(x)؛ MR = |x[i] - x[i-1]|؛ سيغما = متوسط(MR) / 1.128؛ الحدود = CL +/- k سيغما";
-            case "run":
-                return "مخطط تشغيل تقليدي: CL = وسيط(x)؛ بلا حدود تحكم إحصائية؛ قواعد التحول والاتجاه فقط";
-            case "p":
-                return "p[i] = البسط[i] / المقام[i]؛ pbar = مجموع(البسط) / مجموع(المقام)؛ sigma[i] = sqrt(pbar(1-pbar) / المقام[i])";
-            case "u":
-                return "u[i] = العدد[i] / التعرض[i]؛ ubar = مجموع(العدد) / مجموع(التعرض)؛ sigma[i] = sqrt(ubar / التعرض[i])";
-            case "c":
-                return "CL = متوسط(العدد)؛ sigma = sqrt(CL)؛ LCL = max(0, CL - k sigma)";
-        }
+    if (localized === "ar" && mode === "run") {
+        return "مخطط تشغيل تقليدي: CL = وسيط(x)؛ بلا حدود تحكم إحصائية؛ قواعد التحول والاتجاه فقط";
     }
     switch (mode) {
         case "individuals":
             return "CL = mean(x); MR = |x[i] - x[i-1]|; sigma = mean(MR) / 1.128; limits = CL +/- k sigma";
         case "run":
             return "Conventional run chart: CL = median(x); no statistical control limits; shift and trend rules only";
+        case "mr":
+            return "MR[i] = |x[i] - x[i-1]|; CL = mean(MR); sigma = MRbar / d2(2); control limits use D3/D4 scaled by k";
+        case "xbar":
+            return "Xbar: CL = weighted mean(x); sigma = sbar / (c4(n) sqrt(n)) or MRbar / (1.128 sqrt(n)); limits = CL +/- k sigma";
+        case "r":
+            return "R: CL = mean(R); LCL = D3(n) CL; UCL = D4(n) CL";
+        case "s":
+            return "S: CL = mean(S); LCL = B3(n) CL; UCL = B4(n) CL";
         case "p":
             return "p[i] = numerator[i] / denominator[i]; pbar = sum(numerator) / sum(denominator); sigma[i] = sqrt(pbar(1-pbar) / denominator[i])";
+        case "np":
+            return "np[i] = pbar denominator[i]; pbar = sum(numerator) / sum(denominator); sigma[i] = sqrt(pbar(1-pbar) denominator[i])";
         case "u":
             return "u[i] = count[i] / exposure[i]; ubar = sum(count) / sum(exposure); sigma[i] = sqrt(ubar / exposure[i])";
         case "c":
@@ -277,15 +432,36 @@ function pointKeyFor(row: ChartRow): string {
 
 function normalizeRow(mode: ChartMode, row: ChartRow): ChartRow {
     const raw = rawValue(row);
-    const normalized = mode === "p" || mode === "u"
+    const plotValue = mode === "p" || mode === "u"
         ? raw / (row.denominator ?? Number.NaN)
-        : row.value;
+        : raw;
     return {
         ...row,
-        value: normalized,
+        value: plotValue,
         rawValue: raw,
         pointKey: pointKeyFor(row)
     };
+}
+
+function movingRangeRows(rows: ChartRow[]): ChartRow[] {
+    const derived: ChartRow[] = [];
+    let previous: ChartRow | undefined;
+    for (const row of rows) {
+        if (!previous || row.baselineKey !== previous.baselineKey) {
+            previous = row;
+            continue;
+        }
+        const movingRange = Math.abs(row.value - previous.value);
+        derived.push({
+            ...row,
+            value: movingRange,
+            rawValue: movingRange,
+            subgroupSD: undefined,
+            pointKey: `${pointKeyFor(row)}\u001fmr`
+        });
+        previous = row;
+    }
+    return derived;
 }
 
 function contiguousSegments(rows: ChartRow[]): ChartRow[][] {
@@ -324,19 +500,33 @@ function calculateSeries(
 ): { points: CalculatedPoint[]; alarms: Alarm[] } {
     const controlMultiplier = multiplier(options.sigmaMultiplier, DEFAULT_SIGMA_MULTIPLIER);
     const points: CalculatedPoint[] = [];
-    const normalizedRows = orderedRows(rows).map((row) => normalizeRow(options.mode, row));
+    const ordered = orderedRows(rows);
+    const sourceRows = options.mode === "mr" ? movingRangeRows(ordered) : ordered;
+    const normalizedRows = sourceRows.map((row) => normalizeRow(options.mode, row));
     const segments = contiguousSegments(normalizedRows);
     for (const segment of segments) {
         const segmentStatistics = baseStatistics(options.mode, segment, controlMultiplier);
+        const averageSubgroupSize = options.mode === "xbar"
+            ? mean(segment.map(subgroupSize))
+            : undefined;
         for (const row of segment) {
-            const statistics = pointStatistics(options.mode, row, segmentStatistics, controlMultiplier);
+            const statistics = pointStatistics(
+                options.mode,
+                row,
+                segmentStatistics,
+                controlMultiplier,
+                averageSubgroupSize
+            );
+            const plotValue = row.value;
             points.push({
                 ...row,
                 ...statistics,
+                value: plotValue,
+                plotValue,
                 rawValue: row.rawValue ?? row.value,
                 pointKey: pointKeyFor(row),
                 specificationStatus: specificationStatus(
-                    row.value,
+                    plotValue,
                     options.specificationLower,
                     options.specificationUpper
                 ),
@@ -361,8 +551,18 @@ function calculateSeries(
     return { points, alarms };
 }
 
+function validTime(row: ChartRow): boolean {
+    return typeof row.time === "string" && row.time.trim() !== "" &&
+        (row.timeSortKey === undefined ||
+            (typeof row.timeSortKey === "number" && Number.isFinite(row.timeSortKey)) ||
+            (typeof row.timeSortKey === "string" && row.timeSortKey.trim() !== ""));
+}
+
 export function calculateChart(rows: ChartRow[], options: CalculationOptions): ChartResult {
-    const validRows = rows.filter((row) => validateRow(options.mode, rawValue(row), row.denominator));
+    const validRows = rows.filter((row) =>
+        validTime(row) &&
+        validateRow(options.mode, rawValue(row), row.denominator, row.subgroupSD)
+    );
     const seriesKeys = [...new Set(validRows.map((row) => row.seriesKey))];
     const allPoints: CalculatedPoint[] = [];
     const allAlarms: Alarm[] = [];
@@ -381,26 +581,44 @@ export function calculateChart(rows: ChartRow[], options: CalculationOptions): C
         droppedRows: rows.length - validRows.length,
         receivedRows: rows.length,
         hasHighlights: validRows.some((row) => row.highlighted !== undefined),
-        dataStatus: "complete",
+        dataStatus: allPoints.length === 0 && validRows.length > 0 ? "empty" : "complete",
         hasMoreData: false,
         specificationLower: options.specificationLower,
         specificationUpper: options.specificationUpper
     };
 }
 
-export function validateRow(mode: ChartMode, value: unknown, denominator: unknown): boolean {
+export function validateRow(
+    mode: ChartMode,
+    value: unknown,
+    denominator: unknown,
+    subgroupSD?: unknown
+): boolean {
     if (!finite(value)) {
         return false;
     }
-    if (mode === "p" || mode === "u") {
+    if (mode === "p" || mode === "u" || mode === "np") {
         if (!finite(denominator) || denominator <= 0) {
             return false;
         }
     }
-    if (mode === "p" && (value < 0 || !finite(denominator) || value > denominator)) {
+    if (mode === "p" || mode === "np") {
+        if (value < 0 || !finite(denominator) || value > denominator) {
+            return false;
+        }
+    }
+    if (mode === "u" || mode === "c" || mode === "r" || mode === "s") {
+        if (value < 0) {
+            return false;
+        }
+    }
+    if (mode === "xbar" && finite(denominator) && denominator <= 0) {
         return false;
     }
-    if ((mode === "u" || mode === "c") && value < 0) {
+    if ((mode === "r" || mode === "s") && finite(denominator) && denominator < 2) {
+        return false;
+    }
+    if (mode === "xbar" && subgroupSD !== undefined && (!finite(subgroupSD) || subgroupSD < 0)) {
         return false;
     }
     return true;

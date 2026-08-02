@@ -31,6 +31,12 @@
       "kind": "Measure"
     },
     {
+      "name": "SubgroupSD",
+      "displayName": "Subgroup standard deviation",
+      "displayNameKey": "Role_SubgroupSD_DisplayName",
+      "kind": "Measure"
+    },
+    {
       "name": "Series",
       "displayName": "Series",
       "displayNameKey": "Role_Series_DisplayName",
@@ -60,7 +66,12 @@
             "enumeration": [
               { "value": "individuals", "displayName": "Individuals" },
               { "value": "run", "displayName": "Run" },
+              { "value": "mr", "displayName": "Moving range (MR)" },
+              { "value": "xbar", "displayName": "Xbar" },
+              { "value": "r", "displayName": "Range (R)" },
+              { "value": "s", "displayName": "Standard deviation (S)" },
               { "value": "p", "displayName": "P" },
+              { "value": "np", "displayName": "NP" },
               { "value": "u", "displayName": "U" },
               { "value": "c", "displayName": "C" }
             ]
@@ -258,6 +269,17 @@
   },
   "dataViewMappings": [
     {
+      "conditions": [
+        {
+          "Time": { "min": 1, "max": 1 },
+          "Value": { "min": 1, "max": 1 }
+        },
+        {
+          "Time": { "min": 1, "max": 1 },
+          "Value": { "min": 1, "max": 1 },
+          "Denominator": { "min": 1, "max": 1 }
+        }
+      ],
       "categorical": {
         "categories": {
           "select": [
@@ -271,6 +293,7 @@
           "select": [
             { "for": { "in": "Value" } },
             { "for": { "in": "Denominator" } },
+            { "for": { "in": "SubgroupSD" } },
             { "for": { "in": "Tooltips" } }
           ]
         }

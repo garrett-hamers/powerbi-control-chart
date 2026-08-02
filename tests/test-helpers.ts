@@ -17,6 +17,7 @@ export function row(
         baselineKey: options.baselineKey ?? "Baseline",
         baselineLabel: options.baselineLabel ?? "Baseline",
         denominator: options.denominator,
+        subgroupSD: options.subgroupSD,
         pointKey: options.pointKey,
         identity: options.identity,
         highlighted: options.highlighted,
@@ -42,6 +43,7 @@ export function calculatedPoint(
         ...base,
         pointKey: base.pointKey ?? `${base.seriesKey}\u001f${base.baselineKey}\u001f${base.index}`,
         rawValue: value,
+        plotValue: value,
         centerline,
         sigma,
         lowerOne: centerline - sigma,
@@ -75,7 +77,8 @@ export function settings(mode: ChartMode) {
 export function visualDataView(
     values: number[],
     mode: ChartMode = "individuals",
-    denominator?: number[]
+    denominator?: number[],
+    subgroupSD?: number[]
 ): any {
     const valueSource = {
         displayName: "Value",
@@ -88,6 +91,12 @@ export function visualDataView(
         queryName: "denominator",
         roles: { Denominator: true },
         format: "0"
+    };
+    const subgroupSDSource = {
+        displayName: "Subgroup standard deviation",
+        queryName: "subgroupSD",
+        roles: { SubgroupSD: true },
+        format: "0.00"
     };
     const valueColumn = {
         source: valueSource,
@@ -108,8 +117,15 @@ export function visualDataView(
         categorical: {
             categories,
             values: denominator
-                ? [valueColumn, { source: denominatorSource, values: denominator }]
-                : [valueColumn]
+                ? [
+                    valueColumn,
+                    { source: denominatorSource, values: denominator },
+                    ...(subgroupSD ? [{ source: subgroupSDSource, values: subgroupSD }] : [])
+                ]
+                : [
+                    valueColumn,
+                    ...(subgroupSD ? [{ source: subgroupSDSource, values: subgroupSD }] : [])
+                ]
         }
     };
 }
@@ -149,6 +165,7 @@ export function makeHost() {
     const tooltipService = {
         enabled: jest.fn(() => true),
         show: jest.fn(),
+        move: jest.fn(),
         hide: jest.fn()
     };
     const host: any = {
@@ -162,6 +179,7 @@ export function makeHost() {
         eventService: events,
         tooltipService,
         fetchMoreData: jest.fn(() => false),
+        hostCapabilities: { allowInteractions: true },
         createLocalizationManager: () => ({ getDisplayName: (key: string) => key }),
         createSelectionManager: () => selectionManager,
         createSelectionIdBuilder: () => {

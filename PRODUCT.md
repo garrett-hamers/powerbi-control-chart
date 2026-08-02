@@ -24,11 +24,16 @@ The visual runs inside Power BI reports and must work with categorical data, cro
 
 ## Capabilities and Constraints
 
-- MVP modes are Individuals, Run, P, U, and C.
-- Time and Value are required roles; Denominator is required for P and U.
-- Series, BaselineGroup, and Tooltips are optional role inputs.
+- Supported modes are Individuals, Run, MR, Xbar, R, S, P, NP, U, and C.
+- Time and Value are required roles; Denominator is required for P, NP, and U,
+  and is subgroup size for Xbar/R/S when available.
+- SubgroupSD, Series, BaselineGroup, and Tooltips are optional role inputs.
 - Run mode is a conventional median-centered run chart without statistical control limits.
 - P and U modes use normalized rate units for points, limits, specifications, alarms, highlights, and tooltips.
+- Raw numerator/count values remain separate from normalized plot values in every
+  rendered and accessible surface.
+- MR is the within-series moving range; Xbar uses subgroup means with optional
+  subgroup standard deviations; R and S use standard subgroup constants.
 - Control limits and specification limits remain distinct.
 - The implementation is certification-first: no privileges, network calls, external assets, unsafe DOM APIs, or claims of Microsoft certification or real-host validation.
 - The visual GUID is an existing product identifier and must remain stable once published.

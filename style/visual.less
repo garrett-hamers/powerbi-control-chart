@@ -78,6 +78,12 @@
 }
 
 .atlyn-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.atlyn-title {
     margin: 0;
     font-size: 15px;
     font-weight: 650;
@@ -85,9 +91,12 @@
 }
 
 .atlyn-status {
+    min-width: 0;
+    max-width: 48%;
     color: var(--atlyn-muted);
     text-align: end;
-    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .atlyn-status[data-state="error"] {
@@ -101,6 +110,7 @@
 
 .atlyn-summary {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: 10px;
     padding: 2px 10px 7px;
@@ -115,6 +125,7 @@
 
 .atlyn-chart-shell {
     position: relative;
+    min-width: 0;
     min-height: 90px;
     flex: 1 1 auto;
     padding: 0 8px;
@@ -201,6 +212,10 @@
     fill: var(--atlyn-point);
     cursor: pointer;
     touch-action: manipulation;
+}
+
+.atlyn-point[tabindex="0"] {
+    outline: none;
 }
 
 .atlyn-point.series-1 {
@@ -416,8 +431,7 @@
     }
 
     .atlyn-status {
-        overflow: hidden;
-        text-overflow: ellipsis;
+        max-width: 42%;
     }
 
     .atlyn-alarm-table th:nth-child(3),

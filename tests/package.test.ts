@@ -14,8 +14,11 @@ describe("package metadata", () => {
         expect(pbiviz.externalJS).toBeNull();
         expect(pbiviz.stringResources).toHaveLength(5);
         expect(capabilities.dataRoles.map((role: { name: string }) => role.name)).toEqual([
-            "Time", "Value", "Denominator", "Series", "BaselineGroup", "Tooltips"
+            "Time", "Value", "Denominator", "SubgroupSD", "Series", "BaselineGroup", "Tooltips"
         ]);
+        expect(capabilities.dataViewMappings[0].conditions).toEqual(expect.arrayContaining([
+            expect.objectContaining({ Time: { min: 1, max: 1 }, Value: { min: 1, max: 1 } })
+        ]));
     });
 
     test("uses a bounded categorical window without top reduction", () => {
@@ -37,5 +40,13 @@ describe("package metadata", () => {
         expect(packageScript).toContain("if (result.status !== 0)");
         expect(packageScript).toContain("process.exit(result.status ?? 1)");
         expect(packageScript).not.toContain("packageExists");
+    });
+
+    test("keeps release metadata and parity audit wired", () => {
+        const packageJson = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+        for (const file of ["LICENSE", "CHANGELOG.md", "SECURITY.md", "CONTRIBUTING.md"]) {
+            expect(() => readFileSync(join(root, file), "utf8")).not.toThrow();
+        }
+        expect(packageJson.scripts["source-parity-audit"]).toBe("node scripts/source-parity-audit.mjs");
     });
 });
