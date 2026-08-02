@@ -15,8 +15,12 @@ describe("visual lifecycle", () => {
             viewport: { width: 400, height: 300 },
             type: 2
         } as any);
-        expect(mocked.events.renderingStarted).toHaveBeenCalled();
-        expect(mocked.events.renderingFinished).toHaveBeenCalled();
+        expect(mocked.events.renderingStarted).toHaveBeenCalledTimes(1);
+        expect(mocked.events.renderingFinished).toHaveBeenCalledTimes(1);
+        expect(mocked.events.renderingFailed).not.toHaveBeenCalled();
+        expect(mocked.events.renderingStarted.mock.calls[0][0]).toEqual(expect.objectContaining({
+            viewport: { width: 400, height: 300 }
+        }));
         expect(element.querySelector(".atlyn-control-chart")).not.toBeNull();
         visual.destroy();
         expect(element.querySelector(".atlyn-control-chart")).toBeNull();
@@ -37,10 +41,16 @@ describe("visual lifecycle", () => {
             throw new Error("test");
         };
         visual.update({
-            dataViews: [{ categorical: { categories: [], values: [] } }],
+            dataViews: [visualDataView([1, 2, 3])],
             viewport: { width: 400, height: 300 },
             type: 2
         } as any);
-        expect(mocked.events.renderingFinished).toHaveBeenCalled();
+        expect(mocked.events.renderingStarted).toHaveBeenCalledTimes(1);
+        expect(mocked.events.renderingFailed).toHaveBeenCalledTimes(1);
+        expect(mocked.events.renderingFailed).toHaveBeenCalledWith(
+            expect.anything(),
+            "test"
+        );
+        expect(mocked.events.renderingFinished).not.toHaveBeenCalled();
     });
 });

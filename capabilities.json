@@ -15,36 +15,37 @@
     {
       "name": "Time",
       "displayName": "Time",
+      "displayNameKey": "Role_Time_DisplayName",
       "kind": "Grouping"
     },
     {
       "name": "Value",
       "displayName": "Value",
+      "displayNameKey": "Role_Value_DisplayName",
       "kind": "Measure"
     },
     {
       "name": "Denominator",
       "displayName": "Denominator",
+      "displayNameKey": "Role_Denominator_DisplayName",
       "kind": "Measure"
     },
     {
       "name": "Series",
       "displayName": "Series",
+      "displayNameKey": "Role_Series_DisplayName",
       "kind": "Grouping"
     },
     {
       "name": "BaselineGroup",
       "displayName": "Baseline group",
+      "displayNameKey": "Role_Baseline_DisplayName",
       "kind": "Grouping"
-    },
-    {
-      "name": "SubgroupSD",
-      "displayName": "Subgroup SD",
-      "kind": "Measure"
     },
     {
       "name": "Tooltips",
       "displayName": "Tooltips",
+      "displayNameKey": "Role_Tooltips_DisplayName",
       "kind": "GroupingOrMeasure"
     }
   ],
@@ -54,6 +55,7 @@
       "properties": {
         "mode": {
           "displayName": "Chart mode",
+          "displayNameKey": "Chart_Mode_DisplayName",
           "type": {
             "enumeration": [
               { "value": "individuals", "displayName": "Individuals" },
@@ -66,6 +68,7 @@
         },
         "direction": {
           "displayName": "Direction",
+          "displayNameKey": "Direction_DisplayName",
           "type": {
             "enumeration": [
               { "value": "both", "displayName": "Show both sides" },
@@ -75,46 +78,179 @@
             ]
           }
         },
-        "shiftLength": {
-          "displayName": "Shift points",
+        "sigmaMultiplier": {
+          "displayName": "Control sigma multiplier",
+          "displayNameKey": "Sigma_Multiplier_DisplayName",
           "type": { "numeric": true }
         },
-        "trendLength": {
-          "displayName": "Trend points",
+        "twoSigmaMultiplier": {
+          "displayName": "Two-of-three sigma multiplier",
+          "displayNameKey": "Two_Sigma_Multiplier_DisplayName",
           "type": { "numeric": true }
-        },
-        "showBands": {
-          "displayName": "Show sigma bands",
-          "type": { "bool": true }
         },
         "joinRebaselineRules": {
           "displayName": "Join rule sequences across baseline groups",
+          "displayNameKey": "Join_Rebaseline_DisplayName",
           "type": { "bool": true }
         }
       }
     },
     "specificationLimits": {
       "displayName": "Specification limits",
+      "displayNameKey": "Specification_Limits_DisplayName",
       "properties": {
         "lower": {
           "displayName": "Lower specification limit",
+          "displayNameKey": "Lower_Specification_DisplayName",
           "type": { "numeric": true }
         },
         "upper": {
           "displayName": "Upper specification limit",
+          "displayNameKey": "Upper_Specification_DisplayName",
           "type": { "numeric": true }
         },
         "show": {
           "displayName": "Show specification limits",
+          "displayNameKey": "Show_Specification_DisplayName",
           "type": { "bool": true }
         }
       }
     },
+    "limits": {
+      "displayName": "Control limits",
+      "displayNameKey": "Control_Limits_DisplayName",
+      "properties": {
+        "showBands": {
+          "displayName": "Show 1/2 sigma bands",
+          "displayNameKey": "Show_Bands_DisplayName",
+          "type": { "bool": true }
+        },
+        "showControlLimits": {
+          "displayName": "Show control limits",
+          "displayNameKey": "Show_Control_Limits_DisplayName",
+          "type": { "bool": true }
+        },
+        "showCenterline": {
+          "displayName": "Show centerline",
+          "displayNameKey": "Show_Centerline_DisplayName",
+          "type": { "bool": true }
+        },
+        "controlLineStyle": {
+          "displayName": "Control line style",
+          "displayNameKey": "Control_Line_Style_DisplayName",
+          "type": {
+            "enumeration": [
+              { "value": "solid", "displayName": "Solid" },
+              { "value": "dashed", "displayName": "Dashed" },
+              { "value": "dotted", "displayName": "Dotted" }
+            ]
+          }
+        },
+        "centerlineLineStyle": {
+          "displayName": "Centerline line style",
+          "displayNameKey": "Centerline_Line_Style_DisplayName",
+          "type": {
+            "enumeration": [
+              { "value": "solid", "displayName": "Solid" },
+              { "value": "dashed", "displayName": "Dashed" },
+              { "value": "dotted", "displayName": "Dotted" }
+            ]
+          }
+        },
+        "specificationLineStyle": {
+          "displayName": "Specification line style",
+          "displayNameKey": "Specification_Line_Style_DisplayName",
+          "type": {
+            "enumeration": [
+              { "value": "solid", "displayName": "Solid" },
+              { "value": "dashed", "displayName": "Dashed" },
+              { "value": "dotted", "displayName": "Dotted" }
+            ]
+          }
+        }
+      }
+    },
+    "rules": {
+      "displayName": "Rules",
+      "displayNameKey": "Rules_DisplayName",
+      "properties": {
+        "enableOutside3Sigma": {
+          "displayName": "Enable outside control limit rule",
+          "displayNameKey": "Enable_Outside_DisplayName",
+          "type": { "bool": true }
+        },
+        "enableTwoOfThree": {
+          "displayName": "Enable two-of-three rule",
+          "displayNameKey": "Enable_TwoOfThree_DisplayName",
+          "type": { "bool": true }
+        },
+        "enableShift": {
+          "displayName": "Enable shift rule",
+          "displayNameKey": "Enable_Shift_DisplayName",
+          "type": { "bool": true }
+        },
+        "enableTrend": {
+          "displayName": "Enable trend rule",
+          "displayNameKey": "Enable_Trend_DisplayName",
+          "type": { "bool": true }
+        },
+        "shiftLength": {
+          "displayName": "Shift points",
+          "displayNameKey": "Shift_Length_DisplayName",
+          "type": { "numeric": true }
+        },
+        "trendLength": {
+          "displayName": "Trend points",
+          "displayNameKey": "Trend_Length_DisplayName",
+          "type": { "numeric": true }
+        }
+      }
+    },
+    "colors": {
+      "displayName": "Colors",
+      "displayNameKey": "Colors_DisplayName",
+      "properties": {
+        "control": { "displayName": "Control color", "displayNameKey": "Control_Color_DisplayName", "type": { "fill": { "solid": { "color": true } } } },
+        "centerline": { "displayName": "Centerline color", "displayNameKey": "Centerline_Color_DisplayName", "type": { "fill": { "solid": { "color": true } } } },
+        "specification": { "displayName": "Specification color", "displayNameKey": "Specification_Color_DisplayName", "type": { "fill": { "solid": { "color": true } } } },
+        "point": { "displayName": "Point color", "displayNameKey": "Point_Color_DisplayName", "type": { "fill": { "solid": { "color": true } } } },
+        "alarm": { "displayName": "Alarm color", "displayNameKey": "Alarm_Color_DisplayName", "type": { "fill": { "solid": { "color": true } } } },
+        "axis": { "displayName": "Axis color", "displayNameKey": "Axis_Color_DisplayName", "type": { "fill": { "solid": { "color": true } } } },
+        "text": { "displayName": "Text color", "displayNameKey": "Text_Color_DisplayName", "type": { "fill": { "solid": { "color": true } } } },
+        "background": { "displayName": "Background color", "displayNameKey": "Background_Color_DisplayName", "type": { "fill": { "solid": { "color": true } } } }
+      }
+    },
+    "axes": {
+      "displayName": "Axes and text",
+      "displayNameKey": "Axes_DisplayName",
+      "properties": {
+        "show": { "displayName": "Show axes", "displayNameKey": "Show_Axes_DisplayName", "type": { "bool": true } },
+        "tickCount": { "displayName": "Axis tick count", "displayNameKey": "Axis_Ticks_DisplayName", "type": { "numeric": true } }
+      }
+    },
+    "typography": {
+      "displayName": "Typography",
+      "displayNameKey": "Typography_DisplayName",
+      "properties": {
+        "fontSize": { "displayName": "Font size", "displayNameKey": "Font_Size_DisplayName", "type": { "numeric": true } }
+      }
+    },
+    "points": {
+      "displayName": "Points and lines",
+      "displayNameKey": "Points_DisplayName",
+      "properties": {
+        "show": { "displayName": "Show points", "displayNameKey": "Show_Points_DisplayName", "type": { "bool": true } },
+        "size": { "displayName": "Point size", "displayNameKey": "Point_Size_DisplayName", "type": { "numeric": true } },
+        "lineWidth": { "displayName": "Line width", "displayNameKey": "Line_Width_DisplayName", "type": { "numeric": true } }
+      }
+    },
     "accessibility": {
       "displayName": "Accessibility",
+      "displayNameKey": "Accessibility_DisplayName",
       "properties": {
         "showAlarmTable": {
           "displayName": "Show accessible alarm table",
+          "displayNameKey": "Alarm_Table_DisplayName",
           "type": { "bool": true }
         }
       }
@@ -135,7 +271,6 @@
           "select": [
             { "for": { "in": "Value" } },
             { "for": { "in": "Denominator" } },
-            { "for": { "in": "SubgroupSD" } },
             { "for": { "in": "Tooltips" } }
           ]
         }

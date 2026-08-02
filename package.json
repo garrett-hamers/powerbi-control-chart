@@ -17,6 +17,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src scripts tests --ext .ts,.mjs",
     "audit": "npm audit",
+    "certification-audit": "node scripts/certification-audit.mjs",
     "prepare": "node scripts/ensure-assets.mjs"
   },
   "dependencies": {

@@ -8,13 +8,16 @@ export function row(
 ): ChartRow {
     return {
         index,
-        time: `T${index + 1}`,
+        time: options.time ?? `T${index + 1}`,
+        timeSortKey: options.timeSortKey,
         value,
+        rawValue: options.rawValue,
         seriesKey: options.seriesKey ?? "All",
         seriesLabel: options.seriesLabel ?? "All",
         baselineKey: options.baselineKey ?? "Baseline",
         baselineLabel: options.baselineLabel ?? "Baseline",
         denominator: options.denominator,
+        pointKey: options.pointKey,
         identity: options.identity,
         highlighted: options.highlighted,
         tooltipData: options.tooltipData ?? [],
@@ -27,10 +30,18 @@ export function calculatedPoint(
     value: number,
     centerline = 0,
     sigma = 1,
-    baselineKey = "Baseline"
+    baselineKey = "Baseline",
+    options: Partial<ChartRow> = {}
 ): CalculatedPoint {
+    const base = row(index, value, {
+        ...options,
+        baselineKey,
+        baselineLabel: options.baselineLabel ?? baselineKey
+    });
     return {
-        ...row(index, value, { baselineKey, baselineLabel: baselineKey }),
+        ...base,
+        pointKey: base.pointKey ?? `${base.seriesKey}\u001f${base.baselineKey}\u001f${base.index}`,
+        rawValue: value,
         centerline,
         sigma,
         lowerOne: centerline - sigma,
@@ -39,6 +50,8 @@ export function calculatedPoint(
         upperTwo: centerline + 2 * sigma,
         lowerThree: centerline - 3 * sigma,
         upperThree: centerline + 3 * sigma,
+        controlLower: centerline - 3 * sigma,
+        controlUpper: centerline + 3 * sigma,
         specificationStatus: "notConfigured",
         alarms: []
     };
@@ -48,9 +61,14 @@ export function settings(mode: ChartMode) {
     return {
         mode,
         sigmaMultiplier: 3,
+        twoSigmaMultiplier: 2,
         shiftLength: 8,
         trendLength: 6,
-        joinRebaselineRules: false
+        joinRebaselineRules: false,
+        enableOutside3Sigma: true,
+        enableTwoOfThree: true,
+        enableShift: true,
+        enableTrend: true
     };
 }
 
@@ -98,19 +116,30 @@ export function visualDataView(
 
 export function makeHost() {
     const selected: powerbi.visuals.ISelectionId[] = [];
+    let selectionCallback: ((ids: powerbi.visuals.ISelectionId[]) => void) | undefined;
     const selectionManager = {
-        select: jest.fn((id: powerbi.visuals.ISelectionId) => {
+        select: jest.fn((id: powerbi.visuals.ISelectionId, multiSelect = false) => {
+            if (!multiSelect) {
+                selected.length = 0;
+            }
             selected.push(id);
+            selectionCallback?.(selected);
             return Promise.resolve(selected);
         }),
         clear: jest.fn(() => {
             selected.length = 0;
+            selectionCallback?.(selected);
             return Promise.resolve({});
         }),
-        showContextMenu: jest.fn(() => Promise.resolve({})),
+        showContextMenu: jest.fn((
+            _selectionId: powerbi.extensibility.ISelectionId,
+            _position: powerbi.extensibility.IPoint
+        ) => Promise.resolve({})),
         getSelectionIds: jest.fn(() => selected),
         hasSelection: jest.fn(() => selected.length > 0),
-        registerOnSelectCallback: jest.fn()
+        registerOnSelectCallback: jest.fn((callback: (ids: powerbi.visuals.ISelectionId[]) => void) => {
+            selectionCallback = callback;
+        })
     };
     const events = {
         renderingStarted: jest.fn(),
@@ -118,19 +147,41 @@ export function makeHost() {
         renderingFailed: jest.fn()
     };
     const tooltipService = {
+        enabled: jest.fn(() => true),
         show: jest.fn(),
         hide: jest.fn()
     };
     const host: any = {
         locale: "en-US",
-        colorPalette: { isHighContrast: false },
+        colorPalette: {
+            isHighContrast: false,
+            foreground: { value: "#18333a" },
+            background: { value: "#f7fbfa" },
+            foregroundSelected: { value: "#000000" }
+        },
         eventService: events,
         tooltipService,
+        fetchMoreData: jest.fn(() => false),
+        createLocalizationManager: () => ({ getDisplayName: (key: string) => key }),
         createSelectionManager: () => selectionManager,
-        createSelectionIdBuilder: () => ({
-            withCategory: jest.fn().mockReturnThis(),
-            createSelectionId: () => ({ key: "selection" })
-        })
+        createSelectionIdBuilder: () => {
+            const categories: string[] = [];
+            const builder: any = {
+                withCategory: jest.fn((column: any, index: number) => {
+                    categories.push(`${column.source?.queryName ?? column.source?.displayName ?? "category"}:${index}`);
+                    return builder;
+                }),
+                createSelectionId: () => {
+                    const key = categories.join("|");
+                    return {
+                        key,
+                        getKey: () => key,
+                        equals: (other: { getKey?: () => string }) => other.getKey?.() === key
+                    };
+                }
+            };
+            return builder;
+        }
     };
     return { host, selectionManager, events, tooltipService };
 }

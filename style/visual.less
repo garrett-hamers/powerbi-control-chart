@@ -9,6 +9,13 @@
     --atlyn-alarm: #b54432;
     --atlyn-warning: #a56418;
     --atlyn-spec: #654e9b;
+    --atlyn-control: #075957;
+    --atlyn-centerline: #0a7774;
+    --atlyn-point: #075957;
+    --atlyn-axis: #18333a;
+    --atlyn-selected: #000;
+    --atlyn-point-size: 4.5px;
+    --atlyn-line-width: 1.75;
 }
 
 .atlyn-control-chart {
@@ -48,6 +55,12 @@
 
 .atlyn-control-chart.high-contrast .atlyn-point {
     fill: var(--atlyn-surface);
+}
+
+.atlyn-control-chart.high-contrast .atlyn-centerline,
+.atlyn-control-chart.high-contrast .atlyn-band,
+.atlyn-control-chart.high-contrast .atlyn-specification {
+    stroke: var(--atlyn-ink);
 }
 
 .atlyn-control-chart:focus-visible {
@@ -121,7 +134,7 @@
 }
 
 .atlyn-axis {
-    stroke: var(--atlyn-ink);
+    stroke: var(--atlyn-axis);
     stroke-width: 1;
 }
 
@@ -146,14 +159,14 @@
 }
 
 .atlyn-band.band-three {
-    stroke: var(--atlyn-accent-strong);
+    stroke: var(--atlyn-control);
     stroke-width: 1.5;
 }
 
 .atlyn-centerline {
     fill: none;
-    stroke: var(--atlyn-accent);
-    stroke-width: 1.5;
+    stroke: var(--atlyn-centerline);
+    stroke-width: var(--atlyn-line-width);
 }
 
 .atlyn-specification {
@@ -164,8 +177,8 @@
 
 .atlyn-series-line {
     fill: none;
-    stroke: var(--atlyn-accent-strong);
-    stroke-width: 1.75;
+    stroke: var(--atlyn-control);
+    stroke-width: var(--atlyn-line-width);
     stroke-linejoin: round;
     stroke-linecap: round;
 }
@@ -185,8 +198,9 @@
 .atlyn-point {
     stroke: var(--atlyn-surface);
     stroke-width: 1.5;
-    fill: var(--atlyn-accent-strong);
+    fill: var(--atlyn-point);
     cursor: pointer;
+    touch-action: manipulation;
 }
 
 .atlyn-point.series-1 {
@@ -208,7 +222,7 @@
 }
 
 .atlyn-point.is-selected {
-    stroke: var(--atlyn-ink);
+    stroke: var(--atlyn-selected);
     stroke-width: 3;
 }
 
@@ -219,6 +233,35 @@
 .atlyn-point:focus-visible {
     outline: 2px solid var(--atlyn-accent);
     outline-offset: 3px;
+}
+
+.atlyn-control-chart.interactions-disabled .atlyn-point {
+    cursor: default;
+    pointer-events: none;
+}
+
+.atlyn-control-chart.reduced-motion *,
+.atlyn-control-chart.reduced-motion *::before,
+.atlyn-control-chart.reduced-motion *::after {
+    transition: none !important;
+    animation: none !important;
+    scroll-behavior: auto !important;
+}
+
+.atlyn-control-chart[dir="rtl"] .atlyn-axis-label {
+    direction: rtl;
+}
+
+.line-solid {
+    stroke-dasharray: none !important;
+}
+
+.line-dashed {
+    stroke-dasharray: 6 4 !important;
+}
+
+.line-dotted {
+    stroke-dasharray: 2 3 !important;
 }
 
 .atlyn-legend {
@@ -309,6 +352,26 @@
     outline: none;
 }
 
+@media (max-width: 420px) {
+    .atlyn-control-chart {
+        min-width: 160px;
+        min-height: 120px;
+        font-size: 11px;
+    }
+
+    .atlyn-header,
+    .atlyn-summary,
+    .atlyn-legend {
+        padding-left: 7px;
+        padding-right: 7px;
+    }
+
+    .atlyn-alarm-table th,
+    .atlyn-alarm-table td {
+        padding: 6px;
+    }
+}
+
 .atlyn-alarm-row td:first-child {
     color: var(--atlyn-alarm);
     font-weight: 650;
@@ -316,6 +379,18 @@
 
 .atlyn-hidden {
     display: none !important;
+}
+
+.atlyn-control-chart.high-contrast .atlyn-series-line,
+.atlyn-control-chart.high-contrast .atlyn-point,
+.atlyn-control-chart.high-contrast .atlyn-centerline,
+.atlyn-control-chart.high-contrast .atlyn-band,
+.atlyn-control-chart.high-contrast .atlyn-specification {
+    stroke: var(--atlyn-ink) !important;
+}
+
+.atlyn-control-chart.high-contrast .atlyn-point {
+    fill: var(--atlyn-surface) !important;
 }
 
 .atlyn-control-chart.reduced-motion *,
