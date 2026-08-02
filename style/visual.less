@@ -1,0 +1,352 @@
+:root {
+    --atlyn-ink: #18333a;
+    --atlyn-muted: #5d747b;
+    --atlyn-line: #c9d7d9;
+    --atlyn-surface: #f7fbfa;
+    --atlyn-panel: #eef5f3;
+    --atlyn-accent: #0a7774;
+    --atlyn-accent-strong: #075957;
+    --atlyn-alarm: #b54432;
+    --atlyn-warning: #a56418;
+    --atlyn-spec: #654e9b;
+}
+
+.atlyn-control-chart {
+    box-sizing: border-box;
+    width: 100%;
+    height: 100%;
+    min-width: 180px;
+    min-height: 140px;
+    overflow: hidden;
+    color: var(--atlyn-ink);
+    background: var(--atlyn-surface);
+    font-family: "Segoe UI", system-ui, sans-serif;
+    font-size: 12px;
+    line-height: 1.35;
+    display: flex;
+    flex-direction: column;
+    outline: none;
+}
+
+.atlyn-control-chart.high-contrast {
+    --atlyn-ink: #000;
+    --atlyn-muted: #000;
+    --atlyn-line: #000;
+    --atlyn-surface: #fff;
+    --atlyn-panel: #fff;
+    --atlyn-accent: #000;
+    --atlyn-accent-strong: #000;
+    --atlyn-alarm: #000;
+    --atlyn-warning: #000;
+    --atlyn-spec: #000;
+}
+
+.atlyn-control-chart.high-contrast .atlyn-series-line,
+.atlyn-control-chart.high-contrast .atlyn-point {
+    stroke: var(--atlyn-ink);
+}
+
+.atlyn-control-chart.high-contrast .atlyn-point {
+    fill: var(--atlyn-surface);
+}
+
+.atlyn-control-chart:focus-visible {
+    outline: 2px solid var(--atlyn-accent);
+    outline-offset: -2px;
+}
+
+.atlyn-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 10px 4px;
+    flex: 0 0 auto;
+}
+
+.atlyn-title {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+}
+
+.atlyn-status {
+    color: var(--atlyn-muted);
+    text-align: end;
+    white-space: nowrap;
+}
+
+.atlyn-status[data-state="error"] {
+    color: var(--atlyn-alarm);
+    font-weight: 600;
+}
+
+.atlyn-status[data-state="warning"] {
+    color: var(--atlyn-warning);
+}
+
+.atlyn-summary {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 2px 10px 7px;
+    color: var(--atlyn-muted);
+    flex: 0 0 auto;
+}
+
+.atlyn-summary strong {
+    color: var(--atlyn-ink);
+    font-weight: 650;
+}
+
+.atlyn-chart-shell {
+    position: relative;
+    min-height: 90px;
+    flex: 1 1 auto;
+    padding: 0 8px;
+}
+
+.atlyn-chart {
+    display: block;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+.atlyn-grid {
+    stroke: var(--atlyn-line);
+    stroke-width: 1;
+    stroke-dasharray: 2 4;
+}
+
+.atlyn-axis {
+    stroke: var(--atlyn-ink);
+    stroke-width: 1;
+}
+
+.atlyn-axis-label {
+    fill: var(--atlyn-muted);
+    font-size: 10px;
+}
+
+.atlyn-band {
+    fill: none;
+    stroke-width: 1;
+    stroke-dasharray: 3 3;
+    opacity: 0.72;
+}
+
+.atlyn-band.band-one {
+    stroke: #76a9a3;
+}
+
+.atlyn-band.band-two {
+    stroke: #4b918b;
+}
+
+.atlyn-band.band-three {
+    stroke: var(--atlyn-accent-strong);
+    stroke-width: 1.5;
+}
+
+.atlyn-centerline {
+    fill: none;
+    stroke: var(--atlyn-accent);
+    stroke-width: 1.5;
+}
+
+.atlyn-specification {
+    stroke: var(--atlyn-spec);
+    stroke-width: 1.25;
+    stroke-dasharray: 7 3;
+}
+
+.atlyn-series-line {
+    fill: none;
+    stroke: var(--atlyn-accent-strong);
+    stroke-width: 1.75;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+}
+
+.atlyn-series-line.series-1 {
+    stroke: #2769a8;
+}
+
+.atlyn-series-line.series-2 {
+    stroke: #a04d76;
+}
+
+.atlyn-series-line.series-3 {
+    stroke: #9a6a1d;
+}
+
+.atlyn-point {
+    stroke: var(--atlyn-surface);
+    stroke-width: 1.5;
+    fill: var(--atlyn-accent-strong);
+    cursor: pointer;
+}
+
+.atlyn-point.series-1 {
+    fill: #2769a8;
+}
+
+.atlyn-point.series-2 {
+    fill: #a04d76;
+}
+
+.atlyn-point.series-3 {
+    fill: #9a6a1d;
+}
+
+.atlyn-point.is-alarm {
+    stroke: var(--atlyn-alarm);
+    stroke-width: 2.5;
+    fill: var(--atlyn-surface);
+}
+
+.atlyn-point.is-selected {
+    stroke: var(--atlyn-ink);
+    stroke-width: 3;
+}
+
+.atlyn-point.is-dimmed {
+    opacity: 0.28;
+}
+
+.atlyn-point:focus-visible {
+    outline: 2px solid var(--atlyn-accent);
+    outline-offset: 3px;
+}
+
+.atlyn-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px 12px;
+    padding: 3px 10px 6px;
+    color: var(--atlyn-muted);
+}
+
+.atlyn-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.atlyn-formula {
+    flex: 1 1 100%;
+    color: var(--atlyn-muted);
+    font-size: 10px;
+}
+
+.atlyn-swatch {
+    width: 18px;
+    height: 0;
+    border-top: 2px solid var(--atlyn-accent);
+}
+
+.atlyn-swatch.control {
+    border-top-style: dashed;
+}
+
+.atlyn-swatch.spec {
+    border-top: 2px dashed var(--atlyn-spec);
+}
+
+.atlyn-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 70px;
+    padding: 16px;
+    color: var(--atlyn-muted);
+    text-align: center;
+}
+
+.atlyn-alarm-panel {
+    flex: 0 1 auto;
+    max-height: 37%;
+    overflow: auto;
+    border-top: 1px solid var(--atlyn-line);
+    background: var(--atlyn-panel);
+}
+
+.atlyn-alarm-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+}
+
+.atlyn-alarm-table caption {
+    padding: 6px 10px 4px;
+    color: var(--atlyn-ink);
+    font-weight: 650;
+    text-align: start;
+}
+
+.atlyn-alarm-table th,
+.atlyn-alarm-table td {
+    padding: 4px 8px;
+    border-bottom: 1px solid var(--atlyn-line);
+    text-align: start;
+    vertical-align: top;
+}
+
+.atlyn-alarm-table th {
+    color: var(--atlyn-muted);
+    font-weight: 600;
+}
+
+.atlyn-alarm-row {
+    cursor: pointer;
+}
+
+.atlyn-alarm-row:hover,
+.atlyn-alarm-row:focus-visible {
+    background: color-mix(in srgb, var(--atlyn-accent) 12%, var(--atlyn-panel));
+    outline: none;
+}
+
+.atlyn-alarm-row td:first-child {
+    color: var(--atlyn-alarm);
+    font-weight: 650;
+}
+
+.atlyn-hidden {
+    display: none !important;
+}
+
+.atlyn-control-chart.reduced-motion *,
+.atlyn-control-chart.reduced-motion *::before,
+.atlyn-control-chart.reduced-motion *::after {
+    transition: none !important;
+    animation: none !important;
+    scroll-behavior: auto !important;
+}
+
+@media (max-width: 420px) {
+    .atlyn-header {
+        padding-inline: 7px;
+    }
+
+    .atlyn-title {
+        font-size: 13px;
+    }
+
+    .atlyn-summary {
+        padding-inline: 7px;
+        gap: 6px;
+    }
+
+    .atlyn-status {
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .atlyn-alarm-table th:nth-child(3),
+    .atlyn-alarm-table td:nth-child(3) {
+        display: none;
+    }
+}
