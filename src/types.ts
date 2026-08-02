@@ -5,16 +5,21 @@ export type Direction = "both" | "higherIsBetter" | "lowerIsBetter" | "neutral";
 export type AlarmSide = "high" | "low" | "both";
 export type RuleName = "outside3Sigma" | "twoOfThree" | "shift" | "trend";
 export type SpecificationStatus = "within" | "below" | "above" | "notConfigured";
+export type LineStyle = "solid" | "dashed" | "dotted";
+export type DataStatus = "complete" | "partial" | "empty";
 
 export interface ChartRow {
     index: number;
     time: string;
+    timeSortKey?: number | string;
     value: number;
+    rawValue?: number;
     denominator?: number;
     seriesKey: string;
     seriesLabel: string;
     baselineKey: string;
     baselineLabel: string;
+    pointKey?: string;
     identity?: powerbi.visuals.ISelectionId;
     highlighted?: boolean;
     tooltipData: Array<{ displayName: string; value: string; color?: string }>;
@@ -30,9 +35,13 @@ export interface PointStatistics {
     upperTwo: number;
     lowerThree: number;
     upperThree: number;
+    controlLower: number;
+    controlUpper: number;
 }
 
-export interface CalculatedPoint extends ChartRow, PointStatistics {
+export interface CalculatedPoint extends Omit<ChartRow, "value">, PointStatistics {
+    value: number;
+    rawValue: number;
     specificationStatus: SpecificationStatus;
     alarms: RuleName[];
 }
@@ -42,6 +51,8 @@ export interface Alarm {
     rule: RuleName;
     seriesKey: string;
     seriesLabel: string;
+    pointKey: string;
+    pointKeys: string[];
     pointIndex: number;
     pointIndices: number[];
     windowStart: number;
@@ -63,6 +74,8 @@ export interface ChartResult {
     droppedRows: number;
     receivedRows: number;
     hasHighlights: boolean;
+    dataStatus: DataStatus;
+    hasMoreData: boolean;
     specificationLower?: number;
     specificationUpper?: number;
 }
@@ -70,23 +83,55 @@ export interface ChartResult {
 export interface CalculationOptions {
     mode: ChartMode;
     sigmaMultiplier: number;
+    twoSigmaMultiplier?: number;
     shiftLength: number;
     trendLength: number;
     joinRebaselineRules: boolean;
+    enableOutside3Sigma?: boolean;
+    enableTwoOfThree?: boolean;
+    enableShift?: boolean;
+    enableTrend?: boolean;
     specificationLower?: number;
     specificationUpper?: number;
+    locale?: string;
 }
 
 export interface RuleOptions {
     sigmaMultiplier: number;
+    twoSigmaMultiplier?: number;
     shiftLength: number;
     trendLength: number;
     resetOnBaselineChange: boolean;
+    enableOutside3Sigma?: boolean;
+    enableTwoOfThree?: boolean;
+    enableShift?: boolean;
+    enableTrend?: boolean;
+    mode?: ChartMode;
+    locale?: string;
 }
 
 export interface VisualSettings extends CalculationOptions {
     direction: Direction;
     showBands: boolean;
+    showControlLimits: boolean;
+    showCenterline: boolean;
+    showAxes: boolean;
     showSpecificationLimits: boolean;
     showAlarmTable: boolean;
+    showPoints: boolean;
+    pointSize: number;
+    lineWidth: number;
+    fontSize: number;
+    axisTickCount: number;
+    controlLineStyle: LineStyle;
+    centerlineLineStyle: LineStyle;
+    specificationLineStyle: LineStyle;
+    controlColor?: string;
+    centerlineColor?: string;
+    specificationColor?: string;
+    pointColor?: string;
+    alarmColor?: string;
+    axisColor?: string;
+    textColor?: string;
+    backgroundColor?: string;
 }

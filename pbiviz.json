@@ -19,5 +19,11 @@
   "externalJS": null,
   "style": "style/visual.less",
   "capabilities": "capabilities.json",
-  "stringResources": []
+  "stringResources": [
+    "stringResources/en-US/resources.resjson",
+    "stringResources/es-ES/resources.resjson",
+    "stringResources/fr-FR/resources.resjson",
+    "stringResources/de-DE/resources.resjson",
+    "stringResources/ar-SA/resources.resjson"
+  ]
 }

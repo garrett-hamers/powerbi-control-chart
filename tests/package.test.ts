@@ -12,8 +12,9 @@ describe("package metadata", () => {
         expect(pbiviz.visual.version).toBe("1.0.0.0");
         expect(capabilities.privileges).toEqual([]);
         expect(pbiviz.externalJS).toBeNull();
+        expect(pbiviz.stringResources).toHaveLength(5);
         expect(capabilities.dataRoles.map((role: { name: string }) => role.name)).toEqual([
-            "Time", "Value", "Denominator", "Series", "BaselineGroup", "SubgroupSD", "Tooltips"
+            "Time", "Value", "Denominator", "Series", "BaselineGroup", "Tooltips"
         ]);
     });
 
