@@ -48,5 +48,9 @@ describe("package metadata", () => {
             expect(() => readFileSync(join(root, file), "utf8")).not.toThrow();
         }
         expect(packageJson.scripts["source-parity-audit"]).toBe("node scripts/source-parity-audit.mjs");
+        expect(packageJson.scripts["release-manifest"]).toBe("node scripts/release-manifest.mjs");
+        expect(readFileSync(join(root, "scripts/release-manifest.mjs"), "utf8")).toContain(
+            "expected exactly one current package artifact"
+        );
     });
 });
