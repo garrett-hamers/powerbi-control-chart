@@ -1,10 +1,12 @@
 import tseslint from "@typescript-eslint/eslint-plugin";
 import tsParser from "@typescript-eslint/parser";
+import powerbiVisualsConfigs from "eslint-plugin-powerbi-visuals";
 
 export default [
   {
     ignores: ["dist/**", "node_modules/**", "coverage/**"]
   },
+  powerbiVisualsConfigs.configs.recommended,
   {
     files: ["src/**/*.ts", "tests/**/*.ts"],
     languageOptions: {

@@ -24,4 +24,18 @@ describe("package metadata", () => {
         expect(mapping.categories.dataReductionAlgorithm.window.count).toBe(30000);
         expect(mapping.categories.dataReductionAlgorithm.top).toBeUndefined();
     });
+
+    test("keeps certification lint and audit gates explicit", () => {
+        const packageJson = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
+        expect(packageJson.devDependencies["eslint-plugin-powerbi-visuals"]).toBe("1.1.1");
+        expect(packageJson.scripts.eslint).toBe("npx eslint . --ext .js,.jsx,.ts,.tsx");
+        expect(packageJson.scripts.audit).toContain("--audit-level=moderate");
+    });
+
+    test("fails packaging when pbiviz exits unsuccessfully", () => {
+        const packageScript = readFileSync(join(root, "scripts/package.mjs"), "utf8");
+        expect(packageScript).toContain("if (result.status !== 0)");
+        expect(packageScript).toContain("process.exit(result.status ?? 1)");
+        expect(packageScript).not.toContain("packageExists");
+    });
 });
