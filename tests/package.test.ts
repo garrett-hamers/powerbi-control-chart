@@ -31,6 +31,7 @@ describe("package metadata", () => {
     test("keeps certification lint and audit gates explicit", () => {
         const packageJson = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
         expect(packageJson.devDependencies["eslint-plugin-powerbi-visuals"]).toBe("1.1.1");
+        expect(packageJson.devDependencies.jszip).toBe("3.10.1");
         expect(packageJson.scripts.eslint).toBe("npx eslint . --ext .js,.jsx,.ts,.tsx");
         expect(packageJson.scripts.audit).toContain("--audit-level=moderate");
     });
@@ -40,6 +41,8 @@ describe("package metadata", () => {
         expect(packageScript).toContain("if (result.status !== 0)");
         expect(packageScript).toContain("process.exit(result.status ?? 1)");
         expect(packageScript).not.toContain("packageExists");
+        expect(packageScript).toContain("normalizer");
+        expect(packageScript).toContain("normalization.status");
     });
 
     test("keeps release metadata and parity audit wired", () => {
@@ -53,6 +56,9 @@ describe("package metadata", () => {
         expect(packageJson.devDependencies.jszip).toBe("3.10.1");
         expect(readFileSync(join(root, "scripts/package-reproducibility.mjs"), "utf8")).toContain(
             "clean package runs produced different bytes"
+        );
+        expect(readFileSync(join(root, "scripts/normalize-package.mjs"), "utf8")).toContain(
+            "unixPermissions"
         );
         expect(readFileSync(join(root, "scripts/release-manifest.mjs"), "utf8")).toContain(
             "expected exactly one current package artifact"

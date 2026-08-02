@@ -43,9 +43,10 @@ npm run release-manifest
 
 The readiness audits check the package contract, localized metadata, empty privileges,
 source/package identity parity, forbidden runtime network/unsafe-DOM APIs, and the
-single current package artifact. The package path normalizes ZIP entry order,
-timestamps, compression, and platform metadata; `package-reproducibility` asserts
-that two clean package runs are byte-for-byte identical. `release-manifest.json`
-records the exact source commit, package filename, and SHA-256 hash. The package
-has no privileges, network requests, or external runtime assets.
+single current package artifact. Packaging normalizes ZIP entry order, timestamps,
+permissions, platform, and compression so two clean runs produce identical bytes;
+`package-reproducibility` asserts that those runs are byte-for-byte identical.
+`release-manifest.json` records the exact source commit, package filename, and
+SHA-256 hash. The package has no privileges, network requests, or external runtime
+assets.
 This repository does not claim Microsoft certification or real-host validation.
