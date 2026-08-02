@@ -20,6 +20,7 @@
     "audit": "npm audit --audit-level=moderate",
     "certification-audit": "node scripts/certification-audit.mjs",
     "source-parity-audit": "node scripts/source-parity-audit.mjs",
+    "release-manifest": "node scripts/release-manifest.mjs",
     "prepare": "node scripts/ensure-assets.mjs"
   },
   "dependencies": {

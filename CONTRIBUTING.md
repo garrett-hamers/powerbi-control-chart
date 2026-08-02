@@ -14,6 +14,7 @@ npm run package
 npm run audit
 npm run certification-audit
 npm run source-parity-audit
+npm run release-manifest
 ```
 
 Keep the visual GUID stable, preserve `privileges: []`, and include focused

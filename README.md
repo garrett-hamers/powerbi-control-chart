@@ -37,9 +37,12 @@ npm run package
 npm run audit
 npm run certification-audit
 npm run source-parity-audit
+npm run release-manifest
 ```
 
 The readiness audits check the package contract, localized metadata, empty privileges,
-source/package identity parity, and forbidden runtime network/unsafe-DOM APIs. The
-package has no privileges, network requests, or external runtime assets.
+source/package identity parity, forbidden runtime network/unsafe-DOM APIs, and the
+single current package artifact. `release-manifest.json` records the exact source
+commit, package filename, and SHA-256 hash. The package has no privileges, network
+requests, or external runtime assets.
 This repository does not claim Microsoft certification or real-host validation.
