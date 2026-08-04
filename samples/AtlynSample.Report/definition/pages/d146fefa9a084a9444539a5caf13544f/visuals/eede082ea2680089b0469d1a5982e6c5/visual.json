@@ -1,0 +1,76 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.7.0/schema.json",
+  "name": "eede082ea2680089b0469d1a5982e6c5",
+  "position": {
+    "x": 40,
+    "y": 40,
+    "z": 0,
+    "height": 620,
+    "width": 1200,
+    "tabOrder": 0
+  },
+  "visual": {
+    "visualType": "atlynControlChartA1B2C3D4E5F6G7H8I9J0",
+    "query": {
+      "queryState": {
+        "Time": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "Observations"
+                    }
+                  },
+                  "Property": "Day"
+                }
+              },
+              "queryRef": "Observations.Day",
+              "nativeQueryRef": "Day"
+            }
+          ]
+        },
+        "Value": {
+          "projections": [
+            {
+              "field": {
+                "Aggregation": {
+                  "Expression": {
+                    "Column": {
+                      "Expression": {
+                        "SourceRef": {
+                          "Entity": "Observations"
+                        }
+                      },
+                      "Property": "Minutes"
+                    }
+                  },
+                  "Function": 0
+                }
+              },
+              "queryRef": "Sum(Observations.Minutes)",
+              "nativeQueryRef": "Sum of Minutes"
+            }
+          ]
+        }
+      }
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Door-to-doctor time - individuals control chart'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

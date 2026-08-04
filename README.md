@@ -39,6 +39,10 @@ npm run audit
 npm run certification-audit
 npm run source-parity-audit
 npm run release-manifest
+npm run brand-assets
+npm run sample-report
+npm run submission-audit
+npm run screenshots
 ```
 
 The readiness audits check the package contract, localized metadata, empty privileges,
@@ -50,3 +54,35 @@ permissions, platform, and compression so two clean runs produce identical bytes
 SHA-256 hash. The package has no privileges, network requests, or external runtime
 assets.
 This repository does not claim Microsoft certification or real-host validation.
+
+## AppSource submission assets
+
+`docs/partner-center-submission.md` is the submission dossier: every Partner Center
+field with its final value, the free-listing decision, and the remaining manual steps.
+
+| Asset | Requirement | File |
+| --- | --- | --- |
+| Visualization-pane icon | PNG, exactly 20x20 | `assets/icon.png` |
+| Partner Center listing logo | PNG, exactly 300x300 | `assets/logo-300x300.png` |
+| Listing screenshots | 1-5 PNGs, exactly 1366x768, <= 1024 KB each | `assets/screenshots/` |
+| EULA | Required | `EULA.md` |
+| Offline sample report | Required, no external connections | `samples/AtlynSample.pbip` |
+
+The icon and the logo are two different Microsoft requirements, not one asset used
+twice. Both, plus `assets/icon.svg`, are rendered from a single committed generator
+(`npm run brand-assets`, `scripts/build-brand-assets.mjs`) in pure Node, so the audits
+can re-render and diff the pixels.
+
+`npm run screenshots` packages the visual, extracts the built bundle and stylesheet out
+of the `.pbiviz`, renders it against a mock Power BI host in headless Chrome, and
+captures each scene at exactly 1366x768. It never synthesizes an image: with no browser
+available it fails and writes nothing.
+
+`npm run sample-report` regenerates `samples/` - a native PBIP project (PBIR report plus
+TMDL semantic model) whose data lives in a DAX calculated table, so it opens in Power BI
+Desktop with no data source, no credential prompt, and no refresh. The visual is embedded
+as a private custom visual rather than resolved from AppSource. Producing the `.pbix`
+itself is one manual **File > Save As** in Desktop; see section 4.1 of the dossier.
+
+`npm run submission-audit` re-checks all of the above deterministically and is wired into
+CI.

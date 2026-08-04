@@ -4,14 +4,14 @@
     "displayName": "Atlyn Control Chart",
     "guid": "atlynControlChartA1B2C3D4E5F6G7H8I9J0",
     "visualClassName": "Visual",
-    "version": "1.0.0.0",
-    "description": "Auditable Individuals, Run, MR, Xbar, R, S, P, NP, U, and C statistical process control chart.",
-    "supportUrl": "https://github.com/garrett-hamers/powerbi-control-chart/issues"
+    "version": "1.0.1.0",
+    "description": "Know when your process actually changed. Atlyn Control Chart plots Individuals, Run, MR, Xbar, R, S, P, NP, U, and C charts with auditable control limits, Nelson-style rule detection, rebaselining, specification limits, and an accessible alarm table - computed entirely offline inside the Power BI sandbox with transparent row-count diagnostics.",
+    "supportUrl": "https://atlyn.io/contact"
   },
   "apiVersion": "5.11.1",
   "author": {
     "name": "Atlyn",
-    "email": "support@atlyn.example"
+    "email": "atlyn.help@gmail.com"
   },
   "assets": {
     "icon": "assets/icon.png"

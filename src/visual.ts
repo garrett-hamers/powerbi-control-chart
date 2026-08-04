@@ -1,4 +1,9 @@
 import powerbi from "powerbi-visuals-api";
+// The packaged stylesheet is emitted by MiniCssExtractPlugin only when the entry module
+// imports it. Without this import `pbiviz package` produces a .pbiviz whose
+// resources/<guid>.pbiviz.json has no `content.css` at all, and the visual renders unstyled
+// inside Power BI. scripts/audit-submission-assets.mjs asserts the packaged CSS is present.
+import "./../style/visual.less";
 import { alarmIsVisible, ruleLabel } from "./rules";
 import { alarmLabel, directionFromLocale, directionLabel, modeLabel, specificationLabel, t } from "./locale";
 import { calculateChart, validateRow } from "./statistics";

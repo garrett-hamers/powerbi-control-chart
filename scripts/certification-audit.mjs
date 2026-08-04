@@ -1,6 +1,8 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { hasPngSignature, readPngHeader } from "./png-utils.mjs";
+import { verifyBrandAssets } from "./build-brand-assets.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const sourceRoot = join(root, "src");
@@ -63,22 +65,45 @@ for (const releaseFile of ["LICENSE", "CHANGELOG.md", "SECURITY.md", "CONTRIBUTI
         violations.push(`missing release metadata: ${releaseFile}`);
     }
 }
-const iconPath = join(root, "assets", "icon.png");
-if (!existsSync(iconPath)) {
-    violations.push("missing visual icon: assets/icon.png");
-} else {
-    const icon = readFileSync(iconPath);
-    const pngSignature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-    const hasPngSignature = icon.length >= 24 && icon.subarray(0, 8).equals(pngSignature);
-    if (!hasPngSignature) {
-        violations.push("assets/icon.png is not a valid PNG");
-    } else {
-        const width = icon.readUInt32BE(16);
-        const height = icon.readUInt32BE(20);
-        if (width !== 300 || height !== 300) {
-            violations.push(`assets/icon.png must be 300x300, found ${width}x${height}`);
-        }
+const brandDrift = verifyBrandAssets(root);
+for (const problem of brandDrift) {
+    violations.push(problem);
+}
+
+/**
+ * The in-product visualization-pane icon and the Partner Center listing logo are two
+ * different assets with two different required sizes, and this audit previously enforced
+ * the listing size on the in-product icon. They are now checked separately.
+ *
+ * - assets/icon.png must be 20x20:
+ *   https://learn.microsoft.com/en-us/power-bi/developer/visuals/visual-project-structure
+ * - assets/logo-300x300.png must be 300x300:
+ *   https://learn.microsoft.com/en-us/power-bi/developer/visuals/office-store
+ */
+const imageContracts = [
+    { relativePath: "assets/icon.png", size: 20, label: "visualization pane icon" },
+    { relativePath: "assets/logo-300x300.png", size: 300, label: "Partner Center listing logo" }
+];
+for (const contract of imageContracts) {
+    const target = join(root, contract.relativePath);
+    if (!existsSync(target)) {
+        violations.push(`missing ${contract.label}: ${contract.relativePath}`);
+        continue;
     }
+    const image = readFileSync(target);
+    if (!hasPngSignature(image)) {
+        violations.push(`${contract.relativePath} is not a valid PNG`);
+        continue;
+    }
+    const { width, height } = readPngHeader(image);
+    if (width !== contract.size || height !== contract.size) {
+        violations.push(
+            `${contract.relativePath} must be ${contract.size}x${contract.size}, found ${width}x${height}`
+        );
+    }
+}
+if (pbiviz.assets?.icon !== "assets/icon.png") {
+    violations.push(`pbiviz.json assets.icon must be "assets/icon.png", found "${pbiviz.assets?.icon}"`);
 }
 for (const locale of ["en-US", "es-ES", "fr-FR", "de-DE", "ar-SA"]) {
     const resource = join(root, "stringResources", locale, "resources.resjson");
@@ -94,4 +119,8 @@ if (violations.length > 0) {
     process.exit(1);
 }
 
-process.stdout.write("Certification readiness audit passed: no runtime network/unsafe DOM APIs, privileges are empty, localized metadata, release files, and a compliant 300x300 local icon are present.\n");
+process.stdout.write(
+    "Certification readiness audit passed: no runtime network/unsafe DOM APIs, privileges are empty, "
+    + "localized metadata, release files, a 20x20 visualization-pane icon, and a 300x300 Partner Center "
+    + "listing logo are present.\n"
+);
