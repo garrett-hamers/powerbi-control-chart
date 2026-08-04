@@ -65,6 +65,37 @@ for (const releaseFile of ["LICENSE", "CHANGELOG.md", "SECURITY.md", "CONTRIBUTI
         violations.push(`missing release metadata: ${releaseFile}`);
     }
 }
+
+/**
+ * The stylesheet only reaches the package when the webpack entry imports it.
+ *
+ * `pbiviz.json`'s `style` field is metadata: powerbi-visuals-tools wires
+ * MiniCssExtractPlugin + css-loader + less-loader to the module graph rooted at
+ * `src/visual.ts`, so a Less file nothing imports is never compiled and the packaged
+ * resource has no `content.css` at all - a successful build that renders unstyled.
+ *
+ * This is the source-level guard. `scripts/audit-submission-assets.mjs` additionally
+ * asserts the packaged bytes, but it can only run after `npm run package`; this check is
+ * order-independent and fails at the root cause.
+ */
+const stylePath = pbiviz.style ? join(root, pbiviz.style) : undefined;
+if (!stylePath || !existsSync(stylePath)) {
+    violations.push(`pbiviz.json style "${pbiviz.style}" does not exist`);
+} else {
+    const styleBytes = readFileSync(stylePath, "utf8").trim().length;
+    if (styleBytes < 100) {
+        violations.push(`${pbiviz.style} is only ${styleBytes} characters; the visual would ship unstyled`);
+    }
+    const entry = join(root, "src", "visual.ts");
+    const entrySource = existsSync(entry) ? readFileSync(entry, "utf8") : "";
+    const importPattern = /import\s+["'][^"']*style\/visual\.less["']/;
+    if (!importPattern.test(entrySource)) {
+        violations.push(
+            `src/visual.ts does not import ${pbiviz.style}; MiniCssExtractPlugin would emit no CSS `
+            + "and the packaged visual would have an empty content.css"
+        );
+    }
+}
 const brandDrift = verifyBrandAssets(root);
 for (const problem of brandDrift) {
     violations.push(problem);
@@ -121,6 +152,6 @@ if (violations.length > 0) {
 
 process.stdout.write(
     "Certification readiness audit passed: no runtime network/unsafe DOM APIs, privileges are empty, "
-    + "localized metadata, release files, a 20x20 visualization-pane icon, and a 300x300 Partner Center "
-    + "listing logo are present.\n"
+    + "localized metadata, release files, a stylesheet that is actually imported into the bundle, "
+    + "a 20x20 visualization-pane icon, and a 300x300 Partner Center listing logo are present.\n"
 );

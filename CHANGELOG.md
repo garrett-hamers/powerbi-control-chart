@@ -30,10 +30,13 @@
 
 ### Packaging fix
 
-- `src/visual.ts` now imports `./../style/visual.less`. Without that import
-  MiniCssExtractPlugin emitted no stylesheet, so every published package shipped with an
-  empty `content.css` and the visual rendered unstyled inside Power BI. The submission
-  audit now fails when the packaged CSS is missing.
+- `src/visual.ts` now imports `./../style/visual.less`. `pbiviz.json`'s `style` field is
+  metadata only: it does not pull the Less file into the webpack module graph, so
+  MiniCssExtractPlugin emitted nothing and every published package shipped with no
+  `content.css` at all and rendered unstyled inside Power BI. The packaged CSS is now
+  7,772 bytes. `scripts/certification-audit.mjs` fails if the entry stops importing the
+  stylesheet, and `scripts/audit-submission-assets.mjs` fails if the packaged `content.css`
+  is empty, so this cannot silently regress.
 - Version raised to `1.0.1.0` because the packaged bytes change; the storefront serves
   version-keyed artifacts and must be re-published.
 - Pinned `hono` to `4.12.34` through `overrides` to clear GHSA-8j4g-w8fx-2239, a

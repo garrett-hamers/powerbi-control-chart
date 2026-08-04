@@ -160,7 +160,7 @@ committed sizes above are informational.
 | Network access | None. `scripts/certification-audit.mjs` and `tests/forbidden-request.test.ts` assert the source contains no `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`, `eval`, or `new Function`. |
 | Unsafe DOM APIs | None. The same audit rejects `innerHTML`, `outerHTML`, `document.write`, `window.open`, `localStorage`, `sessionStorage`, and `sendBeacon`. |
 | External assets | None. `pbiviz.json` sets `externalJS: null`. |
-| Packaged stylesheet | Present. `src/visual.ts` imports `./../style/visual.less` so MiniCssExtractPlugin emits `content.css` into the package. Before this release that import was missing and the visual shipped **unstyled**; `npm run submission-audit` now fails if `content.css` is empty. |
+| Packaged stylesheet | Present, 7,772 bytes of compiled CSS in `content.css`. `src/visual.ts` imports `./../style/visual.less` so MiniCssExtractPlugin emits it. Before this release that import was missing and the visual shipped **unstyled**: `pbiviz.json`'s `style` field is metadata only and does not pull the Less file into the webpack module graph. `npm run certification-audit` now fails if the entry stops importing it, and `npm run submission-audit` fails if the packaged `content.css` is empty. |
 | Localization | `stringResources/` ships `en-US`, `ar-SA`, `de-DE`, `es-ES`, and `fr-FR`, key-aligned by test. |
 | Accessibility | Keyboard focus and arrow-key point navigation, high-contrast palette support, reduced motion, RTL, ARIA labels per point, and an accessible alarm summary table. |
 | Certification status | **Not claimed.** This repository has not been certified or validated by Microsoft. |

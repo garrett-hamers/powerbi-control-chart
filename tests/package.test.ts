@@ -74,8 +74,15 @@ describe("package metadata", () => {
 
     test("imports the stylesheet so the packaged visual is not shipped unstyled", () => {
         // MiniCssExtractPlugin only emits content.css when the webpack entry imports the Less
-        // file. Without this import `pbiviz package` succeeds and ships a visual with no CSS.
+        // file. pbiviz.json's `style` field is metadata and does not pull it into the module
+        // graph, so without this import `pbiviz package` succeeds and ships a visual with no CSS.
         expect(readFileSync(join(root, "src/visual.ts"), "utf8")).toContain('import "./../style/visual.less";');
+        expect(readFileSync(join(root, "style/visual.less"), "utf8").length).toBeGreaterThan(1000);
+
+        // Source-level guard (order-independent) and packaged-bytes guard (needs dist/).
+        expect(readFileSync(join(root, "scripts/certification-audit.mjs"), "utf8")).toContain(
+            "does not import ${pbiviz.style}"
+        );
         expect(readFileSync(join(root, "scripts/audit-submission-assets.mjs"), "utf8")).toContain(
             "Packaged visual has no content.css"
         );
