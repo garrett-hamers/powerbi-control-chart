@@ -63,6 +63,23 @@ for (const releaseFile of ["LICENSE", "CHANGELOG.md", "SECURITY.md", "CONTRIBUTI
         violations.push(`missing release metadata: ${releaseFile}`);
     }
 }
+const iconPath = join(root, "assets", "icon.png");
+if (!existsSync(iconPath)) {
+    violations.push("missing visual icon: assets/icon.png");
+} else {
+    const icon = readFileSync(iconPath);
+    const pngSignature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    const hasPngSignature = icon.length >= 24 && icon.subarray(0, 8).equals(pngSignature);
+    if (!hasPngSignature) {
+        violations.push("assets/icon.png is not a valid PNG");
+    } else {
+        const width = icon.readUInt32BE(16);
+        const height = icon.readUInt32BE(20);
+        if (width !== 300 || height !== 300) {
+            violations.push(`assets/icon.png must be 300x300, found ${width}x${height}`);
+        }
+    }
+}
 for (const locale of ["en-US", "es-ES", "fr-FR", "de-DE", "ar-SA"]) {
     const resource = join(root, "stringResources", locale, "resources.resjson");
     if (!existsSync(resource)) {
@@ -77,4 +94,4 @@ if (violations.length > 0) {
     process.exit(1);
 }
 
-process.stdout.write("Certification readiness audit passed: no runtime network/unsafe DOM APIs, privileges are empty, localized metadata and release files are present.\n");
+process.stdout.write("Certification readiness audit passed: no runtime network/unsafe DOM APIs, privileges are empty, localized metadata, release files, and a compliant 300x300 local icon are present.\n");
