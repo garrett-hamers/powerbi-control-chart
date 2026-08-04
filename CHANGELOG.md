@@ -47,6 +47,11 @@
 - New npm scripts `brand-assets`, `sample-report`, `screenshots`, and `submission-audit`,
   with `submission-audit` wired into the existing quality workflow alongside the
   certification, parity, reproducibility, and release-manifest gates.
+- Added `.gitattributes` with a global `* text=auto eol=lf` policy so every tracked text
+  file is LF in the index *and* in the working tree. Without it a Windows checkout holds
+  CRLF while git stores LF, and any hash or byte comparison over a tracked text file
+  differs between a local run and the Linux CI checkout. Binary assets are declared
+  explicitly and are untouched; the packaged `.pbiviz` SHA-256 is unchanged.
 - New Jest suites `tests/submissionAssets.test.ts` and `tests/sampleReport.test.ts`.
 
 ## Unreleased

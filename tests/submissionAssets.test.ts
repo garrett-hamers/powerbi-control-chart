@@ -100,4 +100,25 @@ describe("AppSource submission assets", () => {
             .sort();
         expect(declared).toEqual(committed);
     });
+
+    test("normalises tracked text to LF so local and CI bytes agree", () => {
+        // A Windows working tree holding CRLF while git stores LF makes any hash or byte
+        // comparison over a tracked text file differ from the Linux CI checkout - a failure
+        // that only ever reproduces in CI. The policy is global, not per-suffix.
+        const attributes = readFileSync(join(root, ".gitattributes"), "utf8");
+        expect(attributes).toContain("* text=auto eol=lf");
+        ["*.png binary", "*.pbiviz binary", "*.pbix binary"].forEach((rule) => {
+            expect(attributes).toContain(rule);
+        });
+
+        // The files this repository actually hashes or diffs as text must be LF on disk.
+        [
+            "EULA.md",
+            join("docs", "partner-center-submission.md"),
+            join("assets", "icon.svg"),
+            join("samples", "AtlynSample.pbip")
+        ].forEach((relativePath) => {
+            expect(readFileSync(join(root, relativePath), "utf8")).not.toContain("\r\n");
+        });
+    });
 });
