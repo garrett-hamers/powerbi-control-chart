@@ -86,11 +86,10 @@ describe("AppSource submission assets", () => {
         // The logo floor must stay above the icon's own colour count, or an upscale passes.
         expect(audit).toMatch(/const MIN_LOGO_COLORS = (3[2-9]|[4-9]\d|\d{3,});/);
 
-        // The two assets must not be byte-identical at any size, and the logo must be the
-        // larger render rather than a resample of the smaller one.
-        const icon = readPng("assets/icon.png");
-        const logo = readPng("assets/logo-300x300.png");
-        expect(logo.buffer.length).toBeGreaterThan(icon.buffer.length);
+        // Nothing here compares file sizes. An upscale of the icon is larger than the icon
+        // (272 -> 1,612 bytes when forged), so a size comparison passes for exactly the case
+        // it would appear to guard. The colour floor above is what discriminates; this test
+        // pins that it stays in place and stays above the icon's own count.
     });
 
     test("ships an AppSource-ready EULA that links the published policies", () => {
