@@ -29,3 +29,52 @@ jobs:
       - run: npm run submission-audit
       - run: npm run source-parity-audit
       - run: npm run release-manifest
+
+      # The packaged .pbiviz is the artifact that actually gets published, so make it
+      # downloadable and independently hashable rather than relying on a reported value.
+      # A reported hash can silently go stale behind later merges; a downloadable binary
+      # cannot.
+      - name: Verify and report the packaged artifact
+        run: |
+          set -euo pipefail
+          artifact="$(ls dist/*.pbiviz)"
+          filename="$(basename "$artifact")"
+          sha="$(sha256sum "$artifact" | cut -d' ' -f1)"
+          bytes="$(stat -c%s "$artifact")"
+
+          # The release manifest records this hash; assert the recorded value actually
+          # matches the bytes on disk instead of trusting that it was written correctly.
+          recorded_sha="$(node -p "require('./dist/release-manifest.json').package.sha256")"
+          recorded_name="$(node -p "require('./dist/release-manifest.json').package.filename")"
+          if [ "$sha" != "$recorded_sha" ] || [ "$filename" != "$recorded_name" ]; then
+            echo "::error::release-manifest.json records ${recorded_name} / ${recorded_sha}" \
+                 "but dist holds ${filename} / ${sha}"
+            exit 1
+          fi
+
+          echo "filename: ${filename}"
+          echo "sha256:   ${sha}"
+          echo "bytes:    ${bytes}"
+
+          {
+            echo "### Packaged visual"
+            echo ""
+            echo "| Field | Value |"
+            echo "| --- | --- |"
+            echo "| Filename | \`${filename}\` |"
+            echo "| SHA-256 | \`${sha}\` |"
+            echo "| Bytes | ${bytes} |"
+            echo "| Source commit | \`${GITHUB_SHA}\` |"
+            echo ""
+            echo "Download the \`packaged-visual\` artifact and re-hash it to verify."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload packaged visual
+        uses: actions/upload-artifact@v4
+        with:
+          name: packaged-visual
+          path: |
+            dist/*.pbiviz
+            dist/release-manifest.json
+          if-no-files-found: error
+          retention-days: 90
