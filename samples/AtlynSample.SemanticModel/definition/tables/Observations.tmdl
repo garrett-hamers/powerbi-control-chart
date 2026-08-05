@@ -3,7 +3,6 @@ table Observations
 	lineageTag: afc62b4a-94ba-42b7-bcd8-6fc6e6e2bf98
 
 	column Day
-		dataType: string
 		isNameInferred
 		lineageTag: 645b14e1-7cbb-4354-a65c-fcee4c69b782
 		summarizeBy: none
@@ -12,7 +11,6 @@ table Observations
 		annotation SummarizationSetBy = Automatic
 
 	column Minutes
-		dataType: double
 		formatString: 0.0
 		isNameInferred
 		lineageTag: ec5c9389-490c-4358-aafd-58d4c88bf9bf
@@ -22,7 +20,6 @@ table Observations
 		annotation SummarizationSetBy = Automatic
 
 	column Phase
-		dataType: string
 		isNameInferred
 		lineageTag: 5c49f192-8637-4906-a480-eaea4563aabe
 		summarizeBy: none
@@ -31,7 +28,6 @@ table Observations
 		annotation SummarizationSetBy = Automatic
 
 	column Patients
-		dataType: int64
 		formatString: 0
 		isNameInferred
 		lineageTag: 078f601e-30fe-49fc-999f-f2855458bc87
@@ -41,7 +37,6 @@ table Observations
 		annotation SummarizationSetBy = Automatic
 
 	column Breaches
-		dataType: int64
 		formatString: 0
 		isNameInferred
 		lineageTag: ea9d16d0-99e8-42c1-88c8-b241a93fc930
@@ -53,48 +48,48 @@ table Observations
 	partition Observations = calculated
 		mode: import
 		source =
-			DATATABLE(
-			    "Day", STRING,
-			    "Minutes", DOUBLE,
-			    "Phase", STRING,
-			    "Patients", INTEGER,
-			    "Breaches", INTEGER,
-			    {
-			        {"2026-05-04", 31.8, "Baseline", 90, 4},
-			        {"2026-05-05", 33.8, "Baseline", 97, 6},
-			        {"2026-05-06", 28.9, "Baseline", 104, 3},
-			        {"2026-05-07", 33.8, "Baseline", 111, 7},
-			        {"2026-05-08", 27.6, "Baseline", 118, 2},
-			        {"2026-05-09", 29.7, "Baseline", 94, 3},
-			        {"2026-05-10", 31.5, "Baseline", 101, 5},
-			        {"2026-05-11", 30.0, "Baseline", 108, 4},
-			        {"2026-05-12", 28.9, "Baseline", 115, 3},
-			        {"2026-05-13", 30.1, "Baseline", 91, 3},
-			        {"2026-05-14", 34.0, "Baseline", 98, 7},
-			        {"2026-05-15", 34.7, "Baseline", 105, 8},
-			        {"2026-05-16", 28.4, "Baseline", 112, 2},
-			        {"2026-05-17", 34.0, "Baseline", 119, 8},
-			        {"2026-05-18", 30.4, "Baseline", 95, 3},
-			        {"2026-05-19", 31.3, "Baseline", 102, 5},
-			        {"2026-05-20", 31.9, "Baseline", 109, 5},
-			        {"2026-05-21", 33.1, "Baseline", 116, 7},
-			        {"2026-05-22", 32.6, "Baseline", 92, 5},
-			        {"2026-05-23", 29.8, "Baseline", 99, 3},
-			        {"2026-05-24", 28.2, "Baseline", 106, 2},
-			        {"2026-05-25", 30.1, "Baseline", 113, 4},
-			        {"2026-05-26", 33.2, "Baseline", 120, 7},
-			        {"2026-05-27", 33.2, "Baseline", 96, 6},
-			        {"2026-05-28", 34.1, "Baseline", 103, 7},
-			        {"2026-05-29", 32.0, "Baseline", 110, 6},
-			        {"2026-05-30", 30.8, "Baseline", 117, 5},
-			        {"2026-05-31", 33.1, "Baseline", 93, 6},
-			        {"2026-06-01", 39.8, "Post-change", 100, 11},
-			        {"2026-06-02", 34.2, "Post-change", 107, 7},
-			        {"2026-06-03", 34.6, "Post-change", 114, 8},
-			        {"2026-06-04", 35.1, "Post-change", 90, 7},
-			        {"2026-06-05", 35.6, "Post-change", 97, 8},
-			        {"2026-06-06", 36.2, "Post-change", 104, 9},
-			        {"2026-06-07", 36.8, "Post-change", 111, 10},
-			        {"2026-06-08", 37.4, "Post-change", 118, 11}
-			    }
-			)
+				DATATABLE(
+				    "Day", STRING,
+				    "Minutes", DOUBLE,
+				    "Phase", STRING,
+				    "Patients", INTEGER,
+				    "Breaches", INTEGER,
+				    {
+				        {"2026-05-04", 31.8, "Baseline", 90, 4},
+				        {"2026-05-05", 33.8, "Baseline", 97, 6},
+				        {"2026-05-06", 28.9, "Baseline", 104, 3},
+				        {"2026-05-07", 33.8, "Baseline", 111, 7},
+				        {"2026-05-08", 27.6, "Baseline", 118, 2},
+				        {"2026-05-09", 29.7, "Baseline", 94, 3},
+				        {"2026-05-10", 31.5, "Baseline", 101, 5},
+				        {"2026-05-11", 30.0, "Baseline", 108, 4},
+				        {"2026-05-12", 28.9, "Baseline", 115, 3},
+				        {"2026-05-13", 30.1, "Baseline", 91, 3},
+				        {"2026-05-14", 34.0, "Baseline", 98, 7},
+				        {"2026-05-15", 34.7, "Baseline", 105, 8},
+				        {"2026-05-16", 28.4, "Baseline", 112, 2},
+				        {"2026-05-17", 34.0, "Baseline", 119, 8},
+				        {"2026-05-18", 30.4, "Baseline", 95, 3},
+				        {"2026-05-19", 31.3, "Baseline", 102, 5},
+				        {"2026-05-20", 31.9, "Baseline", 109, 5},
+				        {"2026-05-21", 33.1, "Baseline", 116, 7},
+				        {"2026-05-22", 32.6, "Baseline", 92, 5},
+				        {"2026-05-23", 29.8, "Baseline", 99, 3},
+				        {"2026-05-24", 28.2, "Baseline", 106, 2},
+				        {"2026-05-25", 30.1, "Baseline", 113, 4},
+				        {"2026-05-26", 33.2, "Baseline", 120, 7},
+				        {"2026-05-27", 33.2, "Baseline", 96, 6},
+				        {"2026-05-28", 34.1, "Baseline", 103, 7},
+				        {"2026-05-29", 32.0, "Baseline", 110, 6},
+				        {"2026-05-30", 30.8, "Baseline", 117, 5},
+				        {"2026-05-31", 33.1, "Baseline", 93, 6},
+				        {"2026-06-01", 39.8, "Post-change", 100, 11},
+				        {"2026-06-02", 34.2, "Post-change", 107, 7},
+				        {"2026-06-03", 34.6, "Post-change", 114, 8},
+				        {"2026-06-04", 35.1, "Post-change", 90, 7},
+				        {"2026-06-05", 35.6, "Post-change", 97, 8},
+				        {"2026-06-06", 36.2, "Post-change", 104, 9},
+				        {"2026-06-07", 36.8, "Post-change", 111, 10},
+				        {"2026-06-08", 37.4, "Post-change", 118, 11}
+				    }
+				)
