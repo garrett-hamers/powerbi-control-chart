@@ -297,9 +297,11 @@ Steps:
 > columns) were changed to match the sibling project that opens. **These are unproven.**
 > They are departures from the only configuration observed to load, which justifies
 > aligning them; it does not establish that any of them was causal. If Step 3 still fails,
-> treat these as the first confounds to isolate - and note that a sibling repository
-> preserved a commit in which the dangling reference is fixed while these remain
-> divergent, which would separate the two causes if it is ever opened.
+> treat these as the first confounds to isolate - and note that
+> `garrett-hamers/powerbi-distribution-chart` commit **`219d22b4`** preserves a state in
+> which the same dangling reference is fixed while these same schema and TMDL divergences
+> remain, so opening *that* project separates the two causes. `git checkout 219d22b4`
+> reconstructs it at any later date.
 
 > **Format versions.** `definition.pbir` uses `"version": "4.0"` and
 > `definition.pbism` uses `"version": "4.2"` on purpose. Microsoft documents
@@ -331,6 +333,23 @@ The Atlyn storefront serves version-keyed downloads, so after this release the
 `1.0.1.0` `.pbiviz` has to replace the `1.0.0.0` one. Take the filename, SHA-256,
 and byte size from `dist/release-manifest.json` after a clean
 `npm run package && npm run release-manifest`.
+
+> **Do not verify the hash by downloading a CI artifact.** GitHub Actions retains
+> artifacts for 90 days, and every packaged-visual artifact in this repository was
+> produced on 2026-08-05, so all of them expire between **2026-11-02 and 2026-11-03**.
+> After that date a provenance check that downloads the run artifact for a recorded
+> `sourceCommit` fails with *cannot download* rather than *wrong bytes* - it cannot
+> verify, which is neither a pass nor a real failure.
+>
+> The verification path that never expires is to check out the commit and re-package:
+>
+> ```text
+> git checkout <sourceCommit>
+> npm ci && npm run package && npm run release-manifest
+> ```
+>
+> and compare `dist/release-manifest.json` against the recorded hash and size. This
+> works for any commit at any age and is what the reproducibility gate already does.
 
 ### 4.4 Pre-submission link check
 
