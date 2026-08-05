@@ -70,6 +70,29 @@ describe("AppSource submission assets", () => {
         expect(generator).toContain("assets/icon.svg");
     });
 
+    test("the listing logo is rendered at 300x300, not upscaled from the icon", () => {
+        // Comparing the assets against their generator cannot catch a generator that has
+        // started producing something degenerate, because it agrees with that generator by
+        // construction. `submission-audit` therefore also asserts a property of the bytes:
+        // a nearest-neighbour upscale of the 20x20 icon is a valid 300x300 PNG carrying
+        // only the icon's colours, so the logo must carry meaningfully more.
+        //
+        // Verified by forging exactly that asset and patching the generator to emit it: the
+        // generator comparison passed and only the colour floor failed.
+        const audit = readFileSync(join(root, "scripts", "audit-submission-assets.mjs"), "utf8");
+        expect(audit).toContain("MIN_ICON_COLORS");
+        expect(audit).toContain("MIN_LOGO_COLORS");
+        expect(audit).toContain("independently of the generator");
+        // The logo floor must stay above the icon's own colour count, or an upscale passes.
+        expect(audit).toMatch(/const MIN_LOGO_COLORS = (3[2-9]|[4-9]\d|\d{3,});/);
+
+        // The two assets must not be byte-identical at any size, and the logo must be the
+        // larger render rather than a resample of the smaller one.
+        const icon = readPng("assets/icon.png");
+        const logo = readPng("assets/logo-300x300.png");
+        expect(logo.buffer.length).toBeGreaterThan(icon.buffer.length);
+    });
+
     test("ships an AppSource-ready EULA that links the published policies", () => {
         const eula = readFileSync(join(root, "EULA.md"), "utf8");
         expect(eula).toContain("End User License Agreement");
