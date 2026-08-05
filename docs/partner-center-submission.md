@@ -297,9 +297,11 @@ Steps:
 > columns) were changed to match the sibling project that opens. **These are unproven.**
 > They are departures from the only configuration observed to load, which justifies
 > aligning them; it does not establish that any of them was causal. If Step 3 still fails,
-> treat these as the first confounds to isolate - and note that a sibling repository
-> preserved a commit in which the dangling reference is fixed while these remain
-> divergent, which would separate the two causes if it is ever opened.
+> treat these as the first confounds to isolate - and note that
+> `garrett-hamers/powerbi-distribution-chart` commit **`219d22b4`** preserves a state in
+> which the same dangling reference is fixed while these same schema and TMDL divergences
+> remain, so opening *that* project separates the two causes. `git checkout 219d22b4`
+> reconstructs it at any later date.
 
 > **Format versions.** `definition.pbir` uses `"version": "4.0"` and
 > `definition.pbism` uses `"version": "4.2"` on purpose. Microsoft documents
