@@ -124,6 +124,9 @@ bit-identical on every platform, so `npm run certification-audit` and
 `npm run submission-audit` re-render the scene and compare decoded RGBA pixels
 against the committed files, failing on any drift.
 
+The byte counts in the table above are **enforced**: `npm run submission-audit` compares
+each one against the committed file, so they cannot drift silently from this document.
+
 `powerbi-visuals-tools` does not check the icon: it base64-encodes whatever
 `assets.icon` points at and hard-codes `assets: { icon: "assets/icon.png" }` into
 the packaged manifest regardless of the source extension. The submission audit
