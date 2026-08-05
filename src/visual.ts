@@ -23,6 +23,10 @@ type VisualUpdateOptions = powerbi.extensibility.visual.VisualUpdateOptions;
 type VisualConstructorOptions = powerbi.extensibility.visual.VisualConstructorOptions;
 
 const SVG_NS = "http://www.w3.org/2000/svg";
+/** Below this width the chart drops to its compact drawing metrics and hides the legend. */
+const COMPACT_WIDTH = 420;
+/** Below this height the summary chips are dropped so the chart and alarm table survive. */
+const SHORT_HEIGHT = 320;
 const SUPPORTED_MODES: ChartMode[] = ["individuals", "run", "mr", "xbar", "r", "s", "p", "np", "u", "c"];
 const MAX_RENDER_POINTS = 2000;
 const DEFAULT_SETTINGS: VisualSettings = {
@@ -719,6 +723,15 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
         this.root.style.setProperty("--atlyn-point-size", `${this.settings.pointSize}px`);
         this.root.style.setProperty("--atlyn-line-width", `${this.settings.lineWidth}`);
         this.root.classList.toggle("high-contrast", palette.isHighContrast);
+        /*
+         * Progressive disclosure for small tiles. The root is `overflow: hidden`, so when the
+         * stacked chrome is taller than the tile everything below it is silently clipped away -
+         * at a 260x200 tile that removed the legend and the whole accessible alarm table, and at
+         * 180x140 the chart itself never became visible. Dropping the decorative chrome first
+         * keeps the chart and the alarm table, which carry the actual data.
+         */
+        this.root.classList.toggle("is-narrow", this.viewport.width < COMPACT_WIDTH);
+        this.root.classList.toggle("is-short", this.viewport.height < SHORT_HEIGHT);
         const view = this.element.ownerDocument.defaultView;
         const reducedMotion = Boolean(view?.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches);
         this.root.classList.toggle("reduced-motion", reducedMotion);
@@ -1111,7 +1124,7 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
     }
 
     private drawSvg(svg: SVGSVGElement, result: ChartResult): void {
-        const compact = this.viewport.width < 420;
+        const compact = this.viewport.width < COMPACT_WIDTH;
         const width = Math.max(260, this.viewport.width - 16);
         const height = Math.max(130, this.viewport.height - (compact ? 138 : 158));
         const margin = { left: compact ? 36 : 46, right: 14, top: 12, bottom: 27 };

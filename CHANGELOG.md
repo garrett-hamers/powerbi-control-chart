@@ -34,9 +34,32 @@
   metadata only: it does not pull the Less file into the webpack module graph, so
   MiniCssExtractPlugin emitted nothing and every published package shipped with no
   `content.css` at all and rendered unstyled inside Power BI. The packaged CSS is now
-  7,772 bytes. `scripts/certification-audit.mjs` fails if the entry stops importing the
+  9,448 bytes. `scripts/certification-audit.mjs` fails if the entry stops importing the
   stylesheet, and `scripts/audit-submission-assets.mjs` fails if the packaged `content.css`
   is empty, so this cannot silently regress.
+
+### Small-tile layout, unmasked by the packaging fix
+
+Shipping the stylesheet meant `overflow: hidden` and the flex column applied for the first
+time, which exposed a layout defect that had never been visible:
+
+- **The accessible alarm table and the legend were clipped out of existence on small
+  tiles.** `.atlyn-summary` was `flex: 0 0 auto` and `.atlyn-chart-shell` had a 90px floor,
+  while both the summary chips and the legend wrap onto more and more lines as the tile
+  narrows. On a 260x200 tile the stack came to 337px of content inside a 198px clipped root,
+  so the legend and the whole alarm table were invisible; on a 180x140 tile the chart itself
+  never appeared. Every stacked region can now shrink (`min-height: 0`), and the visual sets
+  `is-narrow` / `is-short` classes from the host viewport so the decorative legend is dropped
+  first and the summary chips second - the chart and the alarm table always survive.
+- **`text-overflow: ellipsis` on the title and status bar did nothing**, because it only
+  applies to a single line and neither rule set `white-space: nowrap`. At 180px wide the
+  title wrapped to three lines and consumed over half the tile height. Both now ellipsise.
+
+Verified in a real browser against the packaged bundle and packaged CSS at 1366x768,
+400x300, 260x200, and the declared 180x140 minimum, in LTR and RTL and in high contrast:
+nothing escapes the clipped root at any size. `tests/smallTileLayout.test.ts` covers the
+regression, and `scripts/probe-variants.mjs` / `scripts/probe-render.mjs` reproduce the
+measurements.
 - Version raised to `1.0.1.0` because the packaged bytes change; the storefront serves
   version-keyed artifacts and must be re-published.
 - Pinned `hono` to `4.12.34` through `overrides` to clear GHSA-8j4g-w8fx-2239, a
@@ -52,7 +75,12 @@
   CRLF while git stores LF, and any hash or byte comparison over a tracked text file
   differs between a local run and the Linux CI checkout. Binary assets are declared
   explicitly and are untouched; the packaged `.pbiviz` SHA-256 is unchanged.
-- New Jest suites `tests/submissionAssets.test.ts` and `tests/sampleReport.test.ts`.
+- New Jest suites `tests/submissionAssets.test.ts`, `tests/sampleReport.test.ts`, and
+  `tests/smallTileLayout.test.ts`.
+- Added `scripts/probe-render.mjs` and `scripts/probe-variants.mjs`, which load the packaged
+  bundle and packaged CSS into the mock-host harness and measure real geometry, focus,
+  selection, high contrast, and RTL in a headless browser. They are diagnostic tools, not CI
+  gates, since they need a local browser.
 
 ## Unreleased
 
