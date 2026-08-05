@@ -330,71 +330,70 @@ Steps:
 ### 4.3 Re-publish the storefront artifact
 
 The Atlyn storefront serves version-keyed downloads, so after this release the
-`1.0.1.0` `.pbiviz` has to replace the `1.0.0.0` one. Take the filename, SHA-256,
-and byte size from `dist/release-manifest.json` after a clean
-`npm run package && npm run release-manifest`.
+`1.0.1.0` `.pbiviz` has to replace the `1.0.0.0` one.
 
-> **Do not verify the hash by downloading a CI artifact.** GitHub Actions retains
-> artifacts for 90 days from the run that produced them, so any artifact-based
-> provenance check has a moving expiry date rather than a fixed one.
->
-> The date that matters is the expiry of **the artifact produced by the run for the
-> recorded `sourceCommit`** - not the oldest artifact in the repository. Those are
-> different populations, and the oldest is usually the wrong one: it typically belongs
-> to a superseded pull-request head that no record references, so its expiry measures
-> the lifetime of something nothing depends on. Measured 2026-08-05T07:26Z, the
-> artifact for `sourceCommit` `ef3ff0f8` expires **2026-11-03T01:02:13Z**. Re-measure
-> against the recorded commit rather than trusting that date.
->
-> Once the artifact for a recorded `sourceCommit` has aged out, a provenance check that
-> downloads it fails with *cannot download* rather than *wrong bytes* - it cannot
-> verify, which is neither a pass nor a real failure.
->
-> That expiry is a rebasable date, not a cliff. Because the packaged bytes are stable
-> across commits that touch no packaged input, the run for any later commit produces
-> the same artifact, and re-pointing the recorded `sourceCommit` at it buys a fresh 90
-> days. Measured 2026-08-05T08:10Z: `ef3ff0f8` expires `2026-11-03T01:02:13Z`, while
-> current `main` `3c6a2af3` expires `2026-11-03T08:03:11Z` and repackages to the same
-> `c046a386...` / 27,974 bytes. So the deadline only binds if this repository goes 90
-> days with no run on `main` *and* nobody updates the record.
->
-> Re-point only when a local repackage of the newer commit reproduces the recorded
-> hash. That check is what makes the swap safe: without it, re-pointing would silently
-> change which bytes the record attests to.
->
-> The verification path with no fixed expiry is to check out the commit and re-package:
->
-> ```text
-> git checkout <sourceCommit>
-> npm ci && npm run package && npm run release-manifest
-> ```
->
-> and compare `dist/release-manifest.json` against the recorded hash and size. This is
-> what the reproducibility gate already does, and it has no expiry date - but it is not
-> unconditional. It depends on the npm registry still serving the tarballs pinned in
-> `package-lock.json`. All 999 entries there carry both a `resolved` URL and an
-> `integrity` hash, so a substituted or altered tarball makes `npm ci` fail loudly
-> rather than silently producing different bytes: the failure mode is a refusal to
-> install, not a wrong hash.
->
-> So if this check ever fails, read which step failed. `npm ci` failing is a registry
-> or integrity problem and says nothing about the artifact. Only a completed package
-> whose hash differs is evidence against the recorded value.
->
-> **This path has been executed, not just described.** Measured 2026-08-05T08:30Z: a
-> fresh `git clone` of this repository at `3c6a2af3`, `npm ci` against an empty npm
-> cache so every tarball was fetched from the registry, then `npm run package`,
-> produced `c046a386...` / 27,974 bytes - identical to the recorded value. The same
-> run also settles cross-environment determinism: the artifact GitHub Actions built for
-> `3c6a2af3` on `ubuntu-latest` with Node 20 hashes to the same `c046a386...`, against
-> Windows 10 with Node 24.11.1, npm 11.6.2 and zlib 1.3.1 locally. Two different
-> operating systems, two major Node versions, one cold dependency install, identical
-> bytes.
->
-> What that does *not* cover: it says nothing about future registry availability, and
-> nothing about Node versions newer than those two. It is evidence that the build is
-> insensitive to the axes that were actually varied, which is narrower than "the build
-> is deterministic everywhere".
+**What to do:** run a clean `npm run package && npm run release-manifest`, then take the
+filename, SHA-256 and byte size from `dist/release-manifest.json`.
+
+Current values, measured 2026-08-05T08:35Z at `main` `4955c420`:
+
+| Field | Value |
+| --- | --- |
+| Filename | `atlynControlChartA1B2C3D4E5F6G7H8I9J0.1.0.1.0.pbiviz` |
+| SHA-256 | `c046a386d98955de6c3326b040187a87b81b0a68cee173cef2b732f5aadd54b0` |
+| Size | 27,974 bytes |
+
+#### How to verify that hash later
+
+Check out the commit and re-package. This is the path to use, and it has no expiry:
+
+```text
+git checkout <sourceCommit>
+npm ci && npm run package && npm run release-manifest
+```
+
+Then compare `dist/release-manifest.json` against the recorded hash and size.
+
+**This has been executed, not just described.** Measured 2026-08-05T08:30Z: a fresh
+`git clone` at `3c6a2af3`, `npm ci` against an empty npm cache so every tarball came
+from the registry, then `npm run package`, produced `c046a386...` / 27,974 bytes.
+The same comparison covers cross-environment determinism - the artifact Actions built
+for that commit on `ubuntu-latest` with Node 20 hashes identically against Windows 10
+with Node 24.11.1, npm 11.6.2 and zlib 1.3.1.
+
+Two limits, because evidence about the axes actually varied is narrower than
+determinism in general: it says nothing about future npm registry availability, and
+nothing about Node versions other than those two.
+
+**Reading a failure matters.** `npm ci` failing is a registry or integrity problem and
+says nothing about the artifact - all 999 lockfile entries carry a `resolved` URL and
+an `integrity` hash, so a substituted tarball makes the install refuse rather than
+silently producing different bytes. Only a *completed* package whose hash differs is
+evidence against the recorded value.
+
+#### Why not to verify by downloading a CI artifact
+
+Actions retains artifacts for 90 days from the run that produced them, so a download
+based check expires. Once it has, the check fails with *cannot download* rather than
+*wrong bytes* - it cannot verify, which is neither a pass nor a real failure.
+
+Two things about that date are easy to get wrong:
+
+- **It applies to a specific artifact.** The one that matters is produced by the run for
+  the recorded `sourceCommit`, not the oldest artifact in the repository. The oldest
+  usually belongs to a superseded pull-request head that no record references, so its
+  expiry measures the lifetime of something nothing depends on.
+- **It is rebasable, not a cliff.** The packaged bytes are stable across commits that
+  touch no packaged input, so the run for any later commit produces the same artifact
+  and re-pointing `sourceCommit` at it buys a fresh 90 days. Measured 2026-08-05T08:35Z:
+  `ef3ff0f8` expires `2026-11-03T01:02:13Z`, while `main` `4955c420` expires
+  `2026-11-03T08:33:40Z` for identical bytes. The horizon advances with every merge, so
+  the deadline binds only if this repository goes 90 days with no run on `main` *and*
+  nobody updates the record.
+
+Re-point only when a repackage of the newer commit reproduces the recorded hash.
+Without that check the swap would silently change which bytes the record attests to.
+
 
 ### 4.4 Pre-submission link check
 
