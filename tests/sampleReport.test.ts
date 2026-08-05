@@ -191,6 +191,67 @@ describe("offline sample report project", () => {
         expect(everyTmdl).toContain(`ref table ${TABLE_NAME}`);
     });
 
+    test("declares no resource package that does not exist on disk", () => {
+        /*
+         * This is the defect that stopped the project opening in Power BI Desktop: report.json
+         * declared a SharedResources package pointing at BaseThemes/CY24SU10.json, which the
+         * project does not contain. It was schema-valid the whole time - a JSON schema
+         * constrains shape, not existence - so Desktop reported "Issues were found" and fell
+         * back to an empty report.
+         *
+         * CY24SU10 is a base theme built into Desktop. themeCollection may reference it;
+         * resourcePackages may not, because that claims it ships as a file in the report.
+         */
+        const report = readJson<{
+            themeCollection: { baseTheme: { name: string; type: string } };
+            resourcePackages: Array<{
+                name: string;
+                type: string;
+                items: Array<{ name: string; path: string; type: string }>;
+            }>;
+        }>(REPORT_ROOT, "definition", "report.json");
+
+        expect(report.themeCollection.baseTheme.name).toBe("CY24SU10");
+        expect(report.resourcePackages.map((entry) => entry.type)).toEqual(["CustomVisual"]);
+
+        for (const pkg of report.resourcePackages) {
+            for (const item of pkg.items) {
+                const candidates = pkg.type === "CustomVisual"
+                    ? [path.join(REPORT_ROOT, "CustomVisuals", pkg.name, "resources", item.path)]
+                    : [
+                        path.join(REPORT_ROOT, "StaticResources", pkg.name, item.path),
+                        path.join(REPORT_ROOT, item.path)
+                    ];
+                expect(candidates.some((candidate) => existsSync(candidate))).toBe(true);
+            }
+        }
+    });
+
+    test("uses the schema versions Power BI Desktop 2.150 is known to open", () => {
+        // Every one of these URLs resolves, but only this combination has been observed to
+        // open in the product, so it is pinned rather than left to drift upward.
+        const schemaOf = (...segments: string[]) =>
+            readJson<{ $schema: string }>(...segments).$schema;
+
+        expect(schemaOf(SAMPLE_ROOT, `${SAMPLE_SLUG}.pbip`))
+            .toContain("/fabric/pbip/pbipProperties/1.0.0/");
+        expect(schemaOf(REPORT_ROOT, "definition", "report.json"))
+            .toContain("/report/2.1.0/");
+        expect(schemaOf(REPORT_ROOT, "definition", "pages", "pages.json"))
+            .toContain("/pagesMetadata/1.1.0/");
+        expect(schemaOf(findVisualFile()))
+            .toContain("/visualContainer/2.7.0/");
+
+        const pagesRoot = path.join(REPORT_ROOT, "definition", "pages");
+        const pageId = readdirSync(pagesRoot, { withFileTypes: true })
+            .filter((entry) => entry.isDirectory())[0].name;
+        expect(schemaOf(pagesRoot, pageId, "page.json")).toContain("/page/2.1.0/");
+
+        // version.json is pattern-constrained to ^[1-9][0-9]*\.(0|[1-9][0-9]*)\.0$
+        const version = readJson<{ version: string }>(REPORT_ROOT, "definition", "version.json").version;
+        expect(version).toMatch(/^[1-9][0-9]*\.(0|[1-9][0-9]*)\.0$/);
+    });
+
     test("carries a single ordered observation per subgroup with a genuine special cause", () => {
         const tmdl = readFileSync(
             path.join(MODEL_ROOT, "definition", "tables", `${TABLE_NAME}.tmdl`),
