@@ -36,6 +36,12 @@ Prefer **enforced** over **derived**, and **derived** over **recorded**, for any
 describes current state. Reserve **recorded** for evidence about a past event, which is the
 only kind that must never be refreshed.
 
+State prohibitions against **the act, not a motive or a circumstance**. "Do not update it
+when `main` moves" and "do not rewrite it to buy retention" both forbid one path to the
+same damage and leave the others open, and the reader who does the damage will almost
+always have arrived by a path nobody enumerated - usually tidiness. Write "never update
+it" and give the alternative.
+
 ## 1. Package metadata (`pbiviz.json`)
 
 | Partner Center field | Value | Source |
@@ -208,12 +214,12 @@ DevTools Protocol. Measured after the fix, at commit `65adf21`:
 | 180x140 (declared minimum) | 33 | 55 | 52 | none |
 
 These are recorded observations, not current-state values: they say what the probes
-returned at `65adf21`, and they must not be edited to match a later run. They are still
-descriptive of the shipping visual because `65adf21` is the last commit that changed any
-packaged input - verified by diffing `src/`, `style/`, `capabilities.json` and
-`pbiviz.json` against `main`. **If a later change touches those paths, re-run the probes
-and add a new stamped row set rather than overwriting these**, so a regression stays
-visible as a difference between two measurements.
+returned at `65adf21`. **Never edit them** - not to match a later run, not to correct an
+apparent staleness, not for tidiness. They are still descriptive of the shipping visual
+because `65adf21` is the last commit that changed any packaged input - verified by
+diffing `src/`, `style/`, `capabilities.json` and `pbiviz.json` against `main`. **If a
+later change touches those paths, re-run the probes and add a new stamped row set**, so a
+regression stays visible as a difference between two measurements.
 
 Before the fix, the 258x198 tile clipped the legend and the **entire accessible alarm
 table** out of view, and the 180x140 tile clipped the chart itself. See the CHANGELOG entry
@@ -394,9 +400,10 @@ for that commit on `ubuntu-latest` with Node 20 hashes identically against Windo
 with Node 24.11.1, npm 11.6.2 and zlib 1.3.1.
 
 `3c6a2af3` is the commit this test was actually run at, not a stale reference to the
-tip - do not update it when `main` moves. Re-pointing it would claim the cold install
-was run somewhere it wasn't. To make the same claim about a newer commit, run the test
-against that commit and record it alongside this one.
+tip - **never update it**, whatever has happened to `main` and however stale it looks.
+Re-pointing it would claim the cold install was run somewhere it wasn't. To make the same
+claim about a newer commit, run the test against that commit and record it alongside this
+one.
 
 Two limits, because evidence about the axes actually varied is narrower than
 determinism in general: it says nothing about future npm registry availability, and
