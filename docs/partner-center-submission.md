@@ -350,6 +350,18 @@ and byte size from `dist/release-manifest.json` after a clean
 > downloads it fails with *cannot download* rather than *wrong bytes* - it cannot
 > verify, which is neither a pass nor a real failure.
 >
+> That expiry is a rebasable date, not a cliff. Because the packaged bytes are stable
+> across commits that touch no packaged input, the run for any later commit produces
+> the same artifact, and re-pointing the recorded `sourceCommit` at it buys a fresh 90
+> days. Measured 2026-08-05T08:10Z: `ef3ff0f8` expires `2026-11-03T01:02:13Z`, while
+> current `main` `3c6a2af3` expires `2026-11-03T08:03:11Z` and repackages to the same
+> `c046a386...` / 27,974 bytes. So the deadline only binds if this repository goes 90
+> days with no run on `main` *and* nobody updates the record.
+>
+> Re-point only when a local repackage of the newer commit reproduces the recorded
+> hash. That check is what makes the swap safe: without it, re-pointing would silently
+> change which bytes the record attests to.
+>
 > The verification path with no fixed expiry is to check out the commit and re-package:
 >
 > ```text
