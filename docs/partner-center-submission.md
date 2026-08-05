@@ -361,6 +361,11 @@ The same comparison covers cross-environment determinism - the artifact Actions 
 for that commit on `ubuntu-latest` with Node 20 hashes identically against Windows 10
 with Node 24.11.1, npm 11.6.2 and zlib 1.3.1.
 
+`3c6a2af3` is the commit this test was actually run at, not a stale reference to the
+tip - do not update it when `main` moves. Re-pointing it would claim the cold install
+was run somewhere it wasn't. To make the same claim about a newer commit, run the test
+against that commit and record it alongside this one.
+
 Two limits, because evidence about the axes actually varied is narrower than
 determinism in general: it says nothing about future npm registry availability, and
 nothing about Node versions other than those two.
