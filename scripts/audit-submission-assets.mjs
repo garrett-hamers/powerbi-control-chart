@@ -440,6 +440,102 @@ await check("packaged visual ships its compiled stylesheet and a PNG icon payloa
     return `${packaged.content.js.length} bytes JS, ${packaged.content.css.length} bytes CSS`;
 });
 
+await check("sample report has no dangling internal references", () => {
+    /*
+     * Schema validation is not enough here, and that is exactly how this shipped broken.
+     * Every file under samples/ validated against its declared $schema while
+     * report.json declared a SharedResources package pointing at BaseThemes/CY24SU10.json,
+     * a file the project does not contain. The schema constrains shape, not existence, so
+     * Desktop failed to open the project with "Issues were found" and fell back to an empty
+     * report. This check resolves every declared reference against the files on disk.
+     */
+    const sampleRoot = path.join(root, "samples");
+    const reportRoot = path.join(sampleRoot, `${SAMPLE_SLUG}.Report`);
+    const dangling = [];
+    const resolved = [];
+
+    const pbip = readJson(path.join(sampleRoot, `${SAMPLE_SLUG}.pbip`));
+    for (const artifact of pbip.artifacts ?? []) {
+        const target = path.join(sampleRoot, artifact.report.path);
+        (existsSync(target) ? resolved : dangling).push(`.pbip artifact "${artifact.report.path}"`);
+    }
+
+    const pbir = readJson(path.join(reportRoot, "definition.pbir"));
+    const datasetPath = pbir.datasetReference?.byPath?.path;
+    (datasetPath && existsSync(path.join(reportRoot, datasetPath)) ? resolved : dangling)
+        .push(`.pbir datasetReference "${datasetPath}"`);
+
+    const report = readJson(path.join(reportRoot, "definition", "report.json"));
+    for (const pkg of report.resourcePackages ?? []) {
+        for (const item of pkg.items ?? []) {
+            // A CustomVisual package resolves under CustomVisuals/<name>/resources/.
+            const candidates = pkg.type === "CustomVisual"
+                ? [path.join(reportRoot, "CustomVisuals", pkg.name, "resources", item.path)]
+                : [
+                    path.join(reportRoot, "StaticResources", pkg.name, item.path),
+                    path.join(reportRoot, "StaticResources", item.path),
+                    path.join(reportRoot, pkg.name, item.path),
+                    path.join(reportRoot, item.path)
+                ];
+            const label = `resourcePackage "${pkg.name}" (${pkg.type}) item "${item.path}"`;
+            (candidates.some((candidate) => existsSync(candidate)) ? resolved : dangling).push(label);
+        }
+    }
+
+    const pagesRoot = path.join(reportRoot, "definition", "pages");
+    const pages = readJson(path.join(pagesRoot, "pages.json"));
+    const pageDirectories = readdirSync(pagesRoot, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => entry.name);
+    for (const id of pages.pageOrder ?? []) {
+        (pageDirectories.includes(id) ? resolved : dangling).push(`pages.json pageOrder "${id}"`);
+    }
+    (pageDirectories.includes(pages.activePageName) ? resolved : dangling)
+        .push(`pages.json activePageName "${pages.activePageName}"`);
+    for (const directory of pageDirectories) {
+        const page = readJson(path.join(pagesRoot, directory, "page.json"));
+        (page.name === directory ? resolved : dangling).push(`page.json name "${page.name}"`);
+        const visualsRoot = path.join(pagesRoot, directory, "visuals");
+        for (const entry of readdirSync(visualsRoot, { withFileTypes: true }).filter((e) => e.isDirectory())) {
+            const contained = readJson(path.join(visualsRoot, entry.name, "visual.json"));
+            (contained.name === entry.name ? resolved : dangling).push(`visual.json name "${contained.name}"`);
+        }
+    }
+
+    const modelRoot = path.join(sampleRoot, `${SAMPLE_SLUG}.SemanticModel`, "definition");
+    const modelText = readFileSync(path.join(modelRoot, "model.tmdl"), "utf8");
+    for (const file of readdirSync(path.join(modelRoot, "tables"))) {
+        const table = file.replace(/\.tmdl$/, "");
+        (new RegExp(`^ref table ${table}$`, "m").test(modelText) ? resolved : dangling)
+            .push(`model.tmdl "ref table ${table}"`);
+    }
+
+    ensure(dangling.length === 0, `dangling reference(s): ${dangling.join("; ")}`);
+    return `${resolved.length} references resolve`;
+});
+
+await check("sample report embeds the current build of the visual", async () => {
+    // A stale embedded copy renders an old visual from a project that looks correct.
+    const archive = await JSZip.loadAsync(readFileSync(artifactPath));
+    const embeddedRoot = path.join(root, "samples", `${SAMPLE_SLUG}.Report`, "CustomVisuals", visual.guid);
+    const pairs = [
+        [`resources/${visual.guid}.pbiviz.json`, path.join(embeddedRoot, "resources", `${visual.guid}.pbiviz.json`)],
+        ["package.json", path.join(embeddedRoot, "package.json")]
+    ];
+    for (const [entryName, committed] of pairs) {
+        const entry = archive.file(entryName);
+        ensure(entry, `dist artifact is missing ${entryName}`);
+        ensure(existsSync(committed), `sample is missing ${relative(committed)}`);
+        const fromDist = await entry.async("string");
+        const fromSample = readFileSync(committed, "utf8");
+        ensure(
+            fromDist === fromSample,
+            `${relative(committed)} differs from dist/${artifactName}; re-run \`npm run sample-report\`.`
+        );
+    }
+    return `${pairs.length} embedded file(s) byte-identical to dist/`;
+});
+
 const sampleReportPbix = path.join(root, "samples", `${SAMPLE_SLUG}.pbix`);
 const sampleReportStatus = existsSync(sampleReportPbix)
     ? `present (samples/${SAMPLE_SLUG}.pbix)`

@@ -29,15 +29,15 @@ export const SCHEMAS = {
     pbip: "https://developer.microsoft.com/json-schemas/fabric/pbip/pbipProperties/1.0.0/schema.json",
     platform: "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
     reportDefinition:
-        "https://developer.microsoft.com/json-schemas/fabric/item/report/definitionProperties/2.0.0/schema.json",
+        "https://developer.microsoft.com/json-schemas/fabric/item/report/definitionProperties/1.0.0/schema.json",
     semanticModelDefinition:
         "https://developer.microsoft.com/json-schemas/fabric/item/semanticModel/definitionProperties/1.0.0/schema.json",
     versionMetadata:
         "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/versionMetadata/1.0.0/schema.json",
-    report: "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/report/2.0.0/schema.json",
+    report: "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/report/2.1.0/schema.json",
     pagesMetadata:
-        "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/pagesMetadata/1.0.0/schema.json",
-    page: "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/page/2.0.0/schema.json",
+        "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/pagesMetadata/1.1.0/schema.json",
+    page: "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/page/2.1.0/schema.json",
     visualContainer:
         "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.7.0/schema.json"
 };
@@ -147,18 +147,26 @@ const buildDataTable = (rows) => {
 };
 
 const COLUMNS = [
-    { name: "Day", dataType: "string", summarizeBy: "none", annotation: "Automatic" },
-    { name: "Minutes", dataType: "double", summarizeBy: "sum", annotation: "Automatic", formatString: "0.0" },
-    { name: "Phase", dataType: "string", summarizeBy: "none", annotation: "Automatic" },
-    { name: "Patients", dataType: "int64", summarizeBy: "sum", annotation: "Automatic", formatString: "0" },
-    { name: "Breaches", dataType: "int64", summarizeBy: "sum", annotation: "Automatic", formatString: "0" }
+    { name: "Day", summarizeBy: "none", annotation: "Automatic" },
+    { name: "Minutes", summarizeBy: "sum", annotation: "Automatic", formatString: "0.0" },
+    { name: "Phase", summarizeBy: "none", annotation: "Automatic" },
+    { name: "Patients", summarizeBy: "sum", annotation: "Automatic", formatString: "0" },
+    { name: "Breaches", summarizeBy: "sum", annotation: "Automatic", formatString: "0" }
 ];
 
 const buildTable = (tableName, rows) => {
-    const indent = "\t\t\t";
+    /*
+     * The DAX expression is indented four tabs - two levels below `source =`, which sits at
+     * two. TMDL treats the first expression line's indentation as the block baseline, and
+     * this is the depth Microsoft's published sample and the working sibling project both
+     * use. The generator previously emitted three, which is a needless divergence from the
+     * only shape observed to open in Power BI Desktop.
+     */
+    const indent = "\t\t\t\t";
     const columns = COLUMNS.flatMap((column) => [
         `\tcolumn ${column.name}`,
-        `\t\tdataType: ${column.dataType}`,
+        // No `dataType`: on a calculated table the column types come from the DATATABLE
+        // declaration in the partition, so restating them here can only disagree with it.
         ...(column.formatString ? [`\t\tformatString: ${column.formatString}`] : []),
         "\t\tisNameInferred",
         `\t\tlineageTag: ${stableGuid(`column:${column.name}`)}`,
@@ -266,6 +274,11 @@ export async function buildSampleReportFiles(options = {}) {
     add(`${SAMPLE_ROOT}/${reportFolder}/definition/report.json`, json({
         $schema: SCHEMAS.report,
         themeCollection: {
+            // CY24SU10 is a base theme built into Power BI Desktop. It is referenced here and
+            // deliberately NOT declared in resourcePackages: a resourcePackage entry claims the
+            // theme ships as a file inside the report, so Desktop resolves it relative to the
+            // report folder. This project has no BaseThemes/CY24SU10.json, so declaring it made
+            // the reference dangle and the project failed to open with "Issues were found".
             baseTheme: { name: "CY24SU10", reportVersionAtImport: "5.55", type: "SharedResources" }
         },
         // A CustomVisual resource package embeds the visual in the report. publicCustomVisuals is
@@ -279,11 +292,6 @@ export async function buildSampleReportFiles(options = {}) {
                     path: `${guid}.pbiviz.json`,
                     type: "CustomVisualMetadata"
                 }]
-            },
-            {
-                name: "SharedResources",
-                type: "SharedResources",
-                items: [{ name: "CY24SU10", path: "BaseThemes/CY24SU10.json", type: "BaseTheme" }]
             }
         ],
         settings: {
