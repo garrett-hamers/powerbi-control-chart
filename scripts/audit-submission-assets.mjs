@@ -300,7 +300,7 @@ await check("every committed screenshot corresponds to a declared scene", async 
     return `${committed.length} scenes`;
 });
 
-await check("the dossier's recorded screenshot byte counts match the committed files", () => {
+await check("the dossier's recorded byte counts match the committed files", () => {
     // The dossier states these are re-verified on every audit run. That sentence was true
     // of the 1024 KB limit and false of the counts themselves, so nothing stopped the table
     // drifting from the files after a re-capture. This makes the claim true.
@@ -321,7 +321,27 @@ await check("the dossier's recorded screenshot byte counts match the committed f
             `the dossier records ${recorded} bytes for ${name} but the file is ${actual} bytes.`
         );
     });
-    return `${rows.length} recorded byte count(s) match`;
+
+    // The brand asset table one section earlier records byte counts in its last column and
+    // had the same gap. The pixel comparison against the generator cannot catch this: it
+    // keeps the files matching the generator, and says nothing about what the dossier claims.
+    const brandRows = [
+        ...dossier.matchAll(/\|\s*`(assets\/(?:icon\.svg|icon\.png|logo-300x300\.png))`\s*\|[^|]*\|[^|]*\|\s*([\d,]+)\s*\|/g)
+    ];
+    ensure(
+        brandRows.length === 3,
+        `expected 3 documented brand assets, matched ${brandRows.length}.`
+    );
+    brandRows.forEach(([, relativePath, recorded]) => {
+        const actual = statSync(path.join(root, relativePath)).size;
+        const claimed = Number.parseInt(recorded.replaceAll(",", ""), 10);
+        ensure(
+            actual === claimed,
+            `the dossier records ${recorded} bytes for ${relativePath} but the file is ${actual} bytes.`
+        );
+    });
+
+    return `${rows.length + brandRows.length} recorded byte count(s) match`;
 });
 
 await check("EULA is present", () => {
