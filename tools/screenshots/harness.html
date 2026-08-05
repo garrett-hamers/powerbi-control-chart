@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Atlyn Control Chart - listing screenshot harness</title>
+    <link rel="stylesheet" href="/visual.css" />
+    <style>
+      * { box-sizing: border-box; }
+      html, body {
+        width: 1366px;
+        height: 768px;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background: #ffffff;
+      }
+      body {
+        display: flex;
+        flex-direction: column;
+        color: #0f172a;
+        font-family: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+      header {
+        display: flex;
+        align-items: flex-start;
+        gap: 18px;
+        padding: 18px 40px 12px;
+      }
+      header img { width: 48px; height: 48px; border-radius: 11px; flex: none; }
+      .brand {
+        font-size: 14px;
+        font-weight: 600;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+        color: #0284c7;
+      }
+      .heading { font-size: 25px; font-weight: 600; line-height: 1.2; margin-top: 2px; }
+      .caption {
+        margin-top: 6px;
+        max-width: 1180px;
+        font-size: 13.5px;
+        line-height: 1.42;
+        color: #475569;
+      }
+      main { flex: 1 1 auto; padding: 0 40px 22px; min-height: 0; }
+      .stage {
+        width: 100%;
+        height: 100%;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        background: #ffffff;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+        overflow: hidden;
+      }
+      #visual { width: 100%; height: 100%; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <img src="/assets/logo-300x300.png" alt="Atlyn Control Chart logo" />
+      <div>
+        <div class="brand">Atlyn Control Chart</div>
+        <div class="heading" id="heading"></div>
+        <div class="caption" id="caption"></div>
+      </div>
+    </header>
+    <main>
+      <div class="stage"><div id="visual"></div></div>
+    </main>
+    <script>
+      // The packaged bundle registers itself into window.powerbi.visuals.plugins when a
+      // host object already exists, so install the shim before loading it.
+      window.powerbi = window.powerbi || {};
+      window.powerbi.visuals = window.powerbi.visuals || {};
+      window.powerbi.visuals.plugins = window.powerbi.visuals.plugins || {};
+      window.powerbi.extensibility = window.powerbi.extensibility || {};
+      window.powerbi.extensibility.visualApiVersions =
+        window.powerbi.extensibility.visualApiVersions || [];
+    </script>
+    <script src="/visual.js"></script>
+    <script type="module" src="/harness.mjs"></script>
+  </body>
+</html>

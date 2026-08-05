@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "Report",
+    "displayName": "Atlyn Control Chart Sample"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "449459b9-5643-4502-ad3c-af84c0b7623d"
+  }
+}

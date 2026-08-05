@@ -1,0 +1,24 @@
+# Line-ending policy: LF everywhere, in the index *and* in the working tree.
+#
+# Every tracked text file is normalised to LF on commit and checked out as LF on every
+# platform. Without this, a Windows checkout produces CRLF working-tree bytes while git
+# stores LF, so any hash or byte comparison computed over a tracked text file differs
+# between a local run and the Linux CI checkout - a failure that only ever reproduces in
+# CI. This repository hashes and diffs tracked text (EULA.md, the submission dossier, the
+# generated PBIP project, JSON manifests), so the policy is global rather than per-suffix.
+* text=auto eol=lf
+
+# Binary assets must never be inspected or translated. `text=auto` would detect these
+# anyway; declaring them is explicit and cheap.
+*.png binary
+*.pbiviz binary
+*.pbix binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+
+# The embedded custom-visual payload under samples/ is a machine-generated single-line JSON
+# document containing the built bundle. It is written byte-for-byte by
+# scripts/build-sample-report.mjs and diffed by the submission audit, so it is excluded
+# from any conversion at all.
+samples/**/CustomVisuals/** -text

@@ -9,7 +9,10 @@ describe("package metadata", () => {
         const capabilities = JSON.parse(readFileSync(join(root, "capabilities.json"), "utf8"));
         expect(pbiviz.visual.name).toBe("atlynControlChart");
         expect(pbiviz.visual.guid).toBe("atlynControlChartA1B2C3D4E5F6G7H8I9J0");
-        expect(pbiviz.visual.version).toBe("1.0.0.0");
+        expect(pbiviz.visual.version).toBe("1.0.1.0");
+        expect(pbiviz.visual.supportUrl).toBe("https://atlyn.io/contact");
+        expect(pbiviz.author).toEqual({ name: "Atlyn", email: "atlyn.help@gmail.com" });
+        expect(pbiviz.visual.description.length).toBeGreaterThanOrEqual(40);
         expect(capabilities.privileges).toEqual([]);
         expect(pbiviz.externalJS).toBeNull();
         expect(pbiviz.stringResources).toHaveLength(5);
@@ -47,12 +50,16 @@ describe("package metadata", () => {
 
     test("keeps release metadata and parity audit wired", () => {
         const packageJson = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
-        for (const file of ["LICENSE", "CHANGELOG.md", "SECURITY.md", "CONTRIBUTING.md"]) {
+        for (const file of ["LICENSE", "CHANGELOG.md", "SECURITY.md", "CONTRIBUTING.md", "EULA.md"]) {
             expect(() => readFileSync(join(root, file), "utf8")).not.toThrow();
         }
         expect(packageJson.scripts["source-parity-audit"]).toBe("node scripts/source-parity-audit.mjs");
         expect(packageJson.scripts["release-manifest"]).toBe("node scripts/release-manifest.mjs");
         expect(packageJson.scripts["package-reproducibility"]).toBe("node scripts/package-reproducibility.mjs");
+        expect(packageJson.scripts["brand-assets"]).toBe("node scripts/build-brand-assets.mjs");
+        expect(packageJson.scripts["submission-audit"]).toBe("node scripts/audit-submission-assets.mjs");
+        expect(packageJson.scripts["sample-report"]).toBe("node scripts/build-sample-report.mjs");
+        expect(packageJson.scripts.screenshots).toBe("node scripts/capture-screenshots.mjs");
         expect(packageJson.devDependencies.jszip).toBe("3.10.1");
         expect(readFileSync(join(root, "scripts/package-reproducibility.mjs"), "utf8")).toContain(
             "clean package runs produced different bytes"
@@ -65,11 +72,42 @@ describe("package metadata", () => {
         );
     });
 
-    test("keeps a compliant local marketplace icon asset", () => {
-        const icon = readFileSync(join(root, "assets", "icon.png"));
+    test("imports the stylesheet so the packaged visual is not shipped unstyled", () => {
+        // MiniCssExtractPlugin only emits content.css when the webpack entry imports the Less
+        // file. pbiviz.json's `style` field is metadata and does not pull it into the module
+        // graph, so without this import `pbiviz package` succeeds and ships a visual with no CSS.
+        expect(readFileSync(join(root, "src/visual.ts"), "utf8")).toContain('import "./../style/visual.less";');
+        expect(readFileSync(join(root, "style/visual.less"), "utf8").length).toBeGreaterThan(1000);
+
+        // Source-level guard (order-independent) and packaged-bytes guard (needs dist/).
+        expect(readFileSync(join(root, "scripts/certification-audit.mjs"), "utf8")).toContain(
+            "does not import ${pbiviz.style}"
+        );
+        expect(readFileSync(join(root, "scripts/audit-submission-assets.mjs"), "utf8")).toContain(
+            "Packaged visual has no content.css"
+        );
+    });
+
+    test("ships a 20x20 visualization-pane icon and a separate 300x300 listing logo", () => {
+        // These are two different Microsoft requirements. The visualization-pane icon is
+        // documented as a 20x20 PNG; the Partner Center listing logo is 300x300.
         const pngSignature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-        expect(icon.subarray(0, 8).equals(pngSignature)).toBe(true);
-        expect(icon.readUInt32BE(16)).toBe(300);
-        expect(icon.readUInt32BE(20)).toBe(300);
+        const contracts: Array<[string, number]> = [
+            ["assets/icon.png", 20],
+            ["assets/logo-300x300.png", 300]
+        ];
+        for (const [relativePath, size] of contracts) {
+            const image = readFileSync(join(root, relativePath));
+            expect(image.subarray(0, 8).equals(pngSignature)).toBe(true);
+            expect(image.readUInt32BE(16)).toBe(size);
+            expect(image.readUInt32BE(20)).toBe(size);
+        }
+
+        const pbiviz = JSON.parse(readFileSync(join(root, "pbiviz.json"), "utf8"));
+        expect(pbiviz.assets.icon).toBe("assets/icon.png");
+
+        const audit = readFileSync(join(root, "scripts/certification-audit.mjs"), "utf8");
+        expect(audit).toContain('relativePath: "assets/icon.png", size: 20');
+        expect(audit).toContain('relativePath: "assets/logo-300x300.png", size: 300');
     });
 });
