@@ -228,6 +228,7 @@ await check("brand assets carry real detail, independently of the generator", ()
         { relativePath: "assets/icon.png", floor: MIN_ICON_COLORS },
         { relativePath: "assets/logo-300x300.png", floor: MIN_LOGO_COLORS }
     ];
+    const counts = new Map();
     const reported = [];
     for (const target of targets) {
         const decoded = decodePng(readFileSync(path.join(root, target.relativePath)));
@@ -240,9 +241,22 @@ await check("brand assets carry real detail, independently of the generator", ()
             `${target.relativePath} has ${seen.size} distinct colours, expected at least `
             + `${target.floor}; it looks flat or upscaled rather than rendered.`
         );
+        counts.set(target.relativePath, seen.size);
         reported.push(`${target.relativePath} ${seen.size}`);
     }
-    return reported.join(", ");
+
+    // MIN_LOGO_COLORS is not an arbitrary constant: an upscale of the icon carries exactly
+    // the icon's colours, so the floor only discriminates while it sits above that count.
+    // Enforcing the relation rather than the number means a redesigned icon fails here
+    // instead of silently making the floor decorative.
+    const iconColors = counts.get("assets/icon.png");
+    ensure(
+        MIN_LOGO_COLORS > iconColors,
+        `MIN_LOGO_COLORS is ${MIN_LOGO_COLORS} but assets/icon.png now has ${iconColors} `
+        + "distinct colours; an upscale of it would pass. Raise the floor above the icon."
+    );
+
+    return `${reported.join(", ")}, logo floor ${MIN_LOGO_COLORS} > icon ${iconColors}`;
 });
 
 await check(
@@ -300,7 +314,7 @@ await check("every committed screenshot corresponds to a declared scene", async 
     return `${committed.length} scenes`;
 });
 
-await check("the dossier's recorded screenshot byte counts match the committed files", () => {
+await check("the dossier's recorded byte counts match the committed files", () => {
     // The dossier states these are re-verified on every audit run. That sentence was true
     // of the 1024 KB limit and false of the counts themselves, so nothing stopped the table
     // drifting from the files after a re-capture. This makes the claim true.
@@ -321,7 +335,27 @@ await check("the dossier's recorded screenshot byte counts match the committed f
             `the dossier records ${recorded} bytes for ${name} but the file is ${actual} bytes.`
         );
     });
-    return `${rows.length} recorded byte count(s) match`;
+
+    // The brand asset table one section earlier records byte counts in its last column and
+    // had the same gap. The pixel comparison against the generator cannot catch this: it
+    // keeps the files matching the generator, and says nothing about what the dossier claims.
+    const brandRows = [
+        ...dossier.matchAll(/\|\s*`(assets\/(?:icon\.svg|icon\.png|logo-300x300\.png))`\s*\|[^|]*\|[^|]*\|\s*([\d,]+)\s*\|/g)
+    ];
+    ensure(
+        brandRows.length === 3,
+        `expected 3 documented brand assets, matched ${brandRows.length}.`
+    );
+    brandRows.forEach(([, relativePath, recorded]) => {
+        const actual = statSync(path.join(root, relativePath)).size;
+        const claimed = Number.parseInt(recorded.replaceAll(",", ""), 10);
+        ensure(
+            actual === claimed,
+            `the dossier records ${recorded} bytes for ${relativePath} but the file is ${actual} bytes.`
+        );
+    });
+
+    return `${rows.length + brandRows.length} recorded byte count(s) match`;
 });
 
 await check("EULA is present", () => {
