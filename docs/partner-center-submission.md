@@ -403,11 +403,25 @@ Two things about that date are easy to get wrong:
   `4955c420` expires `2026-11-03T08:33:40Z` for identical bytes.
 
 `sourceCommit` records **where these bytes came from**. That is a historical fact and it
-does not perish, so do not rewrite it to buy retention - doing so trades a permanent
-record for a temporary convenience and leaves the manifest asserting an origin that is
-false. `release-manifest.mjs` derives it from `GITHUB_SHA` or `git rev-parse HEAD` at
-build time, which is exactly the "commit this was produced at" role, and it is the same
-class of value as the measurement SHA guarded in the section above.
+does not perish, so **never rewrite it** - not to buy retention, not to make a check pass,
+not for tidiness. Doing so trades a permanent record for a temporary convenience and
+leaves the manifest asserting an origin that is false. `release-manifest.mjs` derives it
+from `GITHUB_SHA` or `git rev-parse HEAD` at build time, which is exactly the "commit this
+was produced at" role, and it is the same class of value as the measurement SHA guarded in
+the section above.
+
+That rule is load-bearing rather than tidy, because **no verification here can detect a
+rewritten `sourceCommit`.** The rebuild-and-compare procedure above checks out the commit
+the manifest names and confirms it produces the recorded bytes. If the field were repointed
+at a later commit that also produces those bytes, the rebuild would succeed and the check
+would pass - permanently, and more confidently than before, while the recorded origin was
+false. Matching bytes establish *equivalence*, not *origin*, and every check available here
+tests the former.
+
+So the integrity of the origin claim rests entirely on the field never being edited. A
+verification gate that rebuilds at whatever commit the manifest currently names - which is
+the natural way to implement one - cannot supply that guarantee and should not be assumed
+to.
 
 If a downloadable witness is wanted after the original expires, record it **alongside**
 as a separate note - a later commit whose run produces a byte-identical artifact -
