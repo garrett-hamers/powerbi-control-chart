@@ -63,19 +63,23 @@ function createSelectionIdBuilder() {
     return builder;
 }
 
-function createHost() {
+function createHost(options = {}) {
     const selectionManager = createSelectionManager();
+    const highContrast = options.highContrast === true;
     return {
-        locale: "en-US",
+        locale: options.locale ?? "en-US",
         hostCapabilities: { allowInteractions: true },
         createSelectionManager: () => selectionManager,
         createSelectionIdBuilder,
         colorPalette: {
-            isHighContrast: false,
-            foreground: { value: "#18333a" },
-            background: { value: "#ffffff" },
-            foregroundSelected: { value: "#0f766e" },
-            getColor: () => ({ value: "#0369a1" })
+            isHighContrast: highContrast,
+            // A real high-contrast host reports the user's theme colours here, which the
+            // visual applies inline; the .high-contrast class rules are the fallback for a
+            // host that reports the flag without a palette.
+            foreground: highContrast ? { value: "#ffffff" } : { value: "#18333a" },
+            background: highContrast ? { value: "#000000" } : { value: "#ffffff" },
+            foregroundSelected: highContrast ? { value: "#1aebff" } : { value: "#0f766e" },
+            getColor: () => ({ value: highContrast ? "#ffffff" : "#0369a1" })
         },
         tooltipService: {
             enabled: () => false,
@@ -102,7 +106,8 @@ function fail(message) {
 }
 
 function render() {
-    const sceneId = new URLSearchParams(window.location.search).get("scene") ?? SCENES[0].id;
+    const params = new URLSearchParams(window.location.search);
+    const sceneId = params.get("scene") ?? SCENES[0].id;
     const scene = SCENES.find((candidate) => candidate.id === sceneId);
     if (!scene) {
         fail(`Unknown scene "${sceneId}"`);
@@ -116,8 +121,25 @@ function render() {
         fail("Packaged visual plugin was not registered - rebuild with `npm run package`.");
     }
 
+    // Host variants exist so the render probe can exercise the high-contrast and RTL code
+    // paths the stylesheet targets, rather than toggling classes from outside the visual.
+    const host = createHost({
+        highContrast: params.get("hc") === "1",
+        locale: params.get("locale") ?? "en-US"
+    });
+
     const element = document.getElementById("visual");
-    const visual = plugin.create({ element, host: createHost() });
+    // The render probe sizes the stage directly so it can exercise the visual's compact
+    // layout branch; resizing the browser viewport would not shrink a fixed-size harness.
+    const forcedWidth = Number(params.get("w"));
+    const forcedHeight = Number(params.get("h"));
+    if (Number.isFinite(forcedWidth) && forcedWidth > 0) {
+        const stage = element.parentElement;
+        stage.style.width = `${forcedWidth}px`;
+        stage.style.height = `${Number.isFinite(forcedHeight) && forcedHeight > 0 ? forcedHeight : forcedWidth}px`;
+        stage.style.flex = "none";
+    }
+    const visual = plugin.create({ element, host });
     let lastViewport = { width: 0, height: 0 };
 
     const update = () => {

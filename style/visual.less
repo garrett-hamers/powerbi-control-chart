@@ -68,6 +68,21 @@
     outline-offset: -2px;
 }
 
+/*
+ * Small-tile progressive disclosure. `.is-narrow` and `.is-short` are set from the host
+ * viewport in setDirection(). The chart and the accessible alarm table carry the data, so
+ * the decorative legend goes first and the summary chips second; both wrap onto many lines
+ * at small widths and would otherwise push the data out of the clipped root entirely.
+ */
+.atlyn-control-chart.is-narrow .atlyn-legend,
+.atlyn-control-chart.is-short .atlyn-legend {
+    display: none;
+}
+
+.atlyn-control-chart.is-short .atlyn-summary {
+    display: none;
+}
+
 .atlyn-header {
     display: flex;
     align-items: baseline;
@@ -80,6 +95,9 @@
 .atlyn-title {
     min-width: 0;
     overflow: hidden;
+    /* `text-overflow` only applies to a single line, so without `nowrap` the title wrapped
+       instead of ellipsing and consumed over half of a small tile's height. */
+    white-space: nowrap;
     text-overflow: ellipsis;
 }
 
@@ -96,6 +114,7 @@
     color: var(--atlyn-muted);
     text-align: end;
     overflow: hidden;
+    white-space: nowrap;
     text-overflow: ellipsis;
 }
 
@@ -115,7 +134,15 @@
     gap: 10px;
     padding: 2px 10px 7px;
     color: var(--atlyn-muted);
-    flex: 0 0 auto;
+    flex: 0 1 auto;
+    /*
+     * The summary chips wrap, so at a narrow tile width their intrinsic height grows far
+     * beyond the tile. `min-height: 0` lets flexbox shrink them; without it a wrapped
+     * summary pushes the chart, legend, and the accessible alarm table past the clipped
+     * root and they vanish entirely.
+     */
+    min-height: 0;
+    overflow: hidden;
 }
 
 .atlyn-summary strong {
@@ -126,7 +153,13 @@
 .atlyn-chart-shell {
     position: relative;
     min-width: 0;
-    min-height: 90px;
+    /*
+     * The shell must be able to shrink below its content, otherwise a short tile cannot fit
+     * the stack and everything after the chart is clipped away. `drawSvg` already floors the
+     * drawing height and the SVG scales to the shell, so a small shell degrades gracefully.
+     */
+    min-height: 0;
+    overflow: hidden;
     flex: 1 1 auto;
     padding: 0 8px;
 }
@@ -285,6 +318,9 @@
     gap: 5px 12px;
     padding: 3px 10px 6px;
     color: var(--atlyn-muted);
+    flex: 0 1 auto;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .atlyn-legend-item {
@@ -326,6 +362,9 @@
 .atlyn-alarm-panel {
     flex: 0 1 auto;
     max-height: 37%;
+    /* Default `min-height: auto` on a flex item is its min-content height, which at the
+       smallest supported tile pushed the panel past the clipped root. It already scrolls. */
+    min-height: 0;
     overflow: auto;
     border-top: 1px solid var(--atlyn-line);
     background: var(--atlyn-panel);

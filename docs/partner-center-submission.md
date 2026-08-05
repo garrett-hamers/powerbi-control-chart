@@ -133,9 +133,9 @@ signal does not.
 
 | File | Dimensions | Bytes | Shows |
 | --- | --- | --- | --- |
-| `assets/screenshots/01-individuals-control-limits.png` | 1366x768 | 76,706 | Individuals chart over 36 subgroups: centre line, one and two sigma bands, three-sigma control limits, 9 flagged points, and the printed limit formula |
-| `assets/screenshots/02-rule-violations-and-alarm-table.png` | 1366x768 | 92,886 | The same data with a specification limit and the accessible alarm summary table listing each rule, value, limit, and explanation |
-| `assets/screenshots/03-attribute-chart-variable-limits.png` | 1366x768 | 88,995 | A P chart over the same days, where the per-subgroup denominator makes the control limits step instead of running flat |
+| `assets/screenshots/01-individuals-control-limits.png` | 1366x768 | 76,857 | Individuals chart over 36 subgroups: centre line, one and two sigma bands, three-sigma control limits, 9 flagged points, and the printed limit formula |
+| `assets/screenshots/02-rule-violations-and-alarm-table.png` | 1366x768 | 91,966 | The same data with a specification limit and the accessible alarm summary table listing each rule, value, limit, and explanation |
+| `assets/screenshots/03-attribute-chart-variable-limits.png` | 1366x768 | 89,122 | A P chart over the same days, where the per-subgroup denominator makes the control limits step instead of running flat |
 
 Byte counts are re-verified on every run of `npm run submission-audit`; the
 committed sizes above are informational.
@@ -160,13 +160,53 @@ committed sizes above are informational.
 | Network access | None. `scripts/certification-audit.mjs` and `tests/forbidden-request.test.ts` assert the source contains no `fetch`, `XMLHttpRequest`, `WebSocket`, `EventSource`, `eval`, or `new Function`. |
 | Unsafe DOM APIs | None. The same audit rejects `innerHTML`, `outerHTML`, `document.write`, `window.open`, `localStorage`, `sessionStorage`, and `sendBeacon`. |
 | External assets | None. `pbiviz.json` sets `externalJS: null`. |
-| Packaged stylesheet | Present, 7,772 bytes of compiled CSS in `content.css`. `src/visual.ts` imports `./../style/visual.less` so MiniCssExtractPlugin emits it. Before this release that import was missing and the visual shipped **unstyled**: `pbiviz.json`'s `style` field is metadata only and does not pull the Less file into the webpack module graph. `npm run certification-audit` now fails if the entry stops importing it, and `npm run submission-audit` fails if the packaged `content.css` is empty. |
+| Packaged stylesheet | Present, 9,448 bytes of compiled CSS in `content.css`. `src/visual.ts` imports `./../style/visual.less` so MiniCssExtractPlugin emits it. Before this release that import was missing and the visual shipped **unstyled**: `pbiviz.json`'s `style` field is metadata only and does not pull the Less file into the webpack module graph. `npm run certification-audit` now fails if the entry stops importing it, and `npm run submission-audit` fails if the packaged `content.css` is empty. |
+| Small-tile layout | Verified in a real browser at 1366x768, 400x300, 260x200, and the declared 180x140 minimum, in both LTR and RTL and in high contrast. Nothing escapes the visual's clipped root at any of them. See section 3.1. |
 | Localization | `stringResources/` ships `en-US`, `ar-SA`, `de-DE`, `es-ES`, and `fr-FR`, key-aligned by test. |
 | Accessibility | Keyboard focus and arrow-key point navigation, high-contrast palette support, reduced motion, RTL, ARIA labels per point, and an accessible alarm summary table. |
 | Certification status | **Not claimed.** This repository has not been certified or validated by Microsoft. |
 
-## 4. Remaining manual, owner-controlled steps
+### 3.1 Rendered verification of the stylesheet
 
+The stylesheet had never been exercised in a real render before this release, because it
+was never packaged. Turning it on is not a no-op: `overflow: hidden` and the flex column
+started applying for the first time, which exposed a layout defect at small tile sizes.
+
+`scripts/probe-variants.mjs` and `scripts/probe-render.mjs` load the **packaged** bundle and
+its **packaged** CSS into the mock-host harness and measure real geometry over the Chrome
+DevTools Protocol. Measured after the fix:
+
+| Tile | Header | Chart | Alarm table | Escapes the clipped root |
+| --- | --- | --- | --- | --- |
+| 1284x619 | 33 | 395 | 124 | none |
+| 398x298 | 33 | 155 | 110 | none |
+| 258x198 | 33 | 92 | 73 | none |
+| 180x140 (declared minimum) | 33 | 55 | 52 | none |
+
+Before the fix, the 258x198 tile clipped the legend and the **entire accessible alarm
+table** out of view, and the 180x140 tile clipped the chart itself. See the CHANGELOG entry
+for the root cause.
+
+Also verified in the browser with the stylesheet applied:
+
+- **High contrast** - the host palette is applied inline (`--atlyn-ink: #ffffff`,
+  `--atlyn-surface: #000000`), points render as white stroke on black fill, and the
+  `.high-contrast` class rules remain as the fallback for a host that reports the flag
+  without a palette.
+- **RTL** (`ar-SA`) - the root flips to `dir="rtl"` and nothing escapes, in both normal and
+  high-contrast palettes.
+- **Focus** - focusing a point gives a real 2px outline, does not scroll the clipped root,
+  and stays inside the visual's bounds. Arrow-key navigation moves focus between points.
+- **The clipped alarm rows are reachable** - `Tab` to a row below the fold scrolls the
+  `overflow: auto` alarm panel (not the `overflow: hidden` root) and brings the row fully
+  into view with a 3px focus outline.
+- **Selection** - a real click applies `.is-selected` and the stylesheet's selected stroke.
+- **Reduced motion** - the class zeroes `transition-duration` and `animation-duration`.
+
+There is no `:host` rule in the stylesheet and no screen-reader-only class, so neither the
+shadow-root scoping trap nor the "hidden text becomes visible" trap applies here.
+
+## 4. Remaining manual, owner-controlled steps
 These cannot be automated from this repository.
 
 ### 4.1 Save the offline sample report as `.pbix` (required by Microsoft)
@@ -296,11 +336,14 @@ npm run submission-audit      # deterministic AppSource asset gate
 npm run source-parity-audit
 npm run release-manifest
 npm run screenshots           # re-captures assets/screenshots from the built visual
+node scripts/probe-render.mjs    # measures overflow, focus, and selection with the packaged CSS
+node scripts/probe-variants.mjs  # measures high contrast, RTL, and small-tile layout
 ```
 
-`npm run screenshots` needs a locally installed Chrome, Edge, or Chromium (or
-`CHROME_PATH` pointing at one) and Node 22 or newer. It is intentionally not part
-of CI; CI validates the committed PNGs instead.
+`npm run screenshots` and the two probes need a locally installed Chrome, Edge, or
+Chromium (or `CHROME_PATH` pointing at one) and Node 22 or newer. They are intentionally
+not part of CI; CI validates the committed PNGs and the layout contract in
+`tests/smallTileLayout.test.ts` instead.
 
 `npm run sample-report` needs `npm run package` to have run first, because it
 embeds the built `.pbiviz` into the project. `npm run submission-audit` regenerates
