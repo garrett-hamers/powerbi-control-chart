@@ -174,7 +174,7 @@ started applying for the first time, which exposed a layout defect at small tile
 
 `scripts/probe-variants.mjs` and `scripts/probe-render.mjs` load the **packaged** bundle and
 its **packaged** CSS into the mock-host harness and measure real geometry over the Chrome
-DevTools Protocol. Measured after the fix:
+DevTools Protocol. Measured after the fix, at commit `65adf21`:
 
 | Tile | Header | Chart | Alarm table | Escapes the clipped root |
 | --- | --- | --- | --- | --- |
@@ -182,6 +182,14 @@ DevTools Protocol. Measured after the fix:
 | 398x298 | 33 | 155 | 110 | none |
 | 258x198 | 33 | 92 | 73 | none |
 | 180x140 (declared minimum) | 33 | 55 | 52 | none |
+
+These are recorded observations, not current-state values: they say what the probes
+returned at `65adf21`, and they must not be edited to match a later run. They are still
+descriptive of the shipping visual because `65adf21` is the last commit that changed any
+packaged input - verified by diffing `src/`, `style/`, `capabilities.json` and
+`pbiviz.json` against `main`. **If a later change touches those paths, re-run the probes
+and add a new stamped row set rather than overwriting these**, so a regression stays
+visible as a difference between two measurements.
 
 Before the fix, the 258x198 tile clipped the legend and the **entire accessible alarm
 table** out of view, and the 180x140 tile clipped the chart itself. See the CHANGELOG entry
