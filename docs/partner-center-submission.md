@@ -341,15 +341,24 @@ and byte size from `dist/release-manifest.json` after a clean
 > `sourceCommit` fails with *cannot download* rather than *wrong bytes* - it cannot
 > verify, which is neither a pass nor a real failure.
 >
-> The verification path that never expires is to check out the commit and re-package:
+> The verification path with no fixed expiry is to check out the commit and re-package:
 >
 > ```text
 > git checkout <sourceCommit>
 > npm ci && npm run package && npm run release-manifest
 > ```
 >
-> and compare `dist/release-manifest.json` against the recorded hash and size. This
-> works for any commit at any age and is what the reproducibility gate already does.
+> and compare `dist/release-manifest.json` against the recorded hash and size. This is
+> what the reproducibility gate already does, and it has no expiry date - but it is not
+> unconditional. It depends on the npm registry still serving the tarballs pinned in
+> `package-lock.json`. All 999 entries there carry both a `resolved` URL and an
+> `integrity` hash, so a substituted or altered tarball makes `npm ci` fail loudly
+> rather than silently producing different bytes: the failure mode is a refusal to
+> install, not a wrong hash.
+>
+> So if this check ever fails, read which step failed. `npm ci` failing is a registry
+> or integrity problem and says nothing about the artifact. Only a completed package
+> whose hash differs is evidence against the recorded value.
 
 ### 4.4 Pre-submission link check
 
