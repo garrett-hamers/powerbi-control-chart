@@ -358,6 +358,29 @@ await check("the dossier's recorded byte counts match the committed files", () =
     return `${rows.length + brandRows.length} recorded byte count(s) match`;
 });
 
+await check("every section pointer in the dossier resolves to a real heading", () => {
+    // The dossier cross-references its own sections, and a pointer to a section that does
+    // not exist is the same defect as the dangling resource reference that stopped the
+    // sample opening - resolvable by whoever wrote it and by nobody else. A draft of the
+    // section that introduced this convention cited a "section 2.1" that never existed.
+    const dossier = readFileSync(path.join(root, "docs", "partner-center-submission.md"), "utf8");
+    const headings = new Set(
+        [...dossier.matchAll(/^#{2,4}\s+(\d+(?:\.\d+)?)\.?\s/gm)].map((match) => match[1])
+    );
+    ensure(headings.size > 0, "no numbered headings were found; the pointer check cannot run.");
+
+    const referenced = [...new Set(
+        [...dossier.matchAll(/\bsections?\s+(\d+(?:\.\d+)?)/g)].map((match) => match[1])
+    )].sort();
+    const dangling = referenced.filter((section) => !headings.has(section));
+    ensure(
+        dangling.length === 0,
+        `the dossier points at section(s) ${dangling.join(", ")}, which do not exist. `
+        + `Existing sections: ${[...headings].sort().join(", ")}.`
+    );
+    return `${referenced.length} pointer(s) resolve`;
+});
+
 await check("EULA is present", () => {
     const eulaPath = path.join(root, "EULA.md");
     const bytes = requireNonEmptyFile(eulaPath, 512);
