@@ -388,16 +388,28 @@ Two things about that date are easy to get wrong:
   the recorded `sourceCommit`, not the oldest artifact in the repository. The oldest
   usually belongs to a superseded pull-request head that no record references, so its
   expiry measures the lifetime of something nothing depends on.
-- **It is rebasable, not a cliff.** The packaged bytes are stable across commits that
-  touch no packaged input, so the run for any later commit produces the same artifact
-  and re-pointing `sourceCommit` at it buys a fresh 90 days. Measured 2026-08-05T08:35Z:
-  `ef3ff0f8` expires `2026-11-03T01:02:13Z`, while `main` `4955c420` expires
-  `2026-11-03T08:33:40Z` for identical bytes. The horizon advances with every merge, so
-  the deadline binds only if this repository goes 90 days with no run on `main` *and*
-  nobody updates the record.
+- **It is escapable, but not by overwriting `sourceCommit`.** The packaged bytes are
+  stable across commits that touch no packaged input, so the run for any later commit
+  produces the same artifact and can be downloaded long after the original has aged out.
+  Measured 2026-08-05T08:35Z: `ef3ff0f8` expires `2026-11-03T01:02:13Z`, while `main`
+  `4955c420` expires `2026-11-03T08:33:40Z` for identical bytes.
 
-Re-point only when a repackage of the newer commit reproduces the recorded hash.
-Without that check the swap would silently change which bytes the record attests to.
+`sourceCommit` records **where these bytes came from**. That is a historical fact and it
+does not perish, so do not rewrite it to buy retention - doing so trades a permanent
+record for a temporary convenience and leaves the manifest asserting an origin that is
+false. `release-manifest.mjs` derives it from `GITHUB_SHA` or `git rev-parse HEAD` at
+build time, which is exactly the "commit this was produced at" role, and it is the same
+class of value as the measurement SHA guarded in the section above.
+
+If a downloadable witness is wanted after the original expires, record it **alongside**
+as a separate note - a later commit whose run produces a byte-identical artifact -
+naming both commits and the date the equivalence was checked. Establish that equivalence
+by repackaging the newer commit and comparing hashes; without it the note would attest
+to bytes nobody compared.
+
+None of this is urgent. The horizon advances with every merge, so it binds only if this
+repository goes 90 days with no run on `main` **and** nobody records a witness. Either
+condition alone is harmless.
 
 
 ### 4.4 Pre-submission link check
