@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import JSZip from "jszip";
-import { hasPngSignature, readPngHeader } from "./png-utils.mjs";
+import { hasPngSignature, readPngHeader, decodePng } from "./png-utils.mjs";
 import { verifyBrandAssets } from "./build-brand-assets.mjs";
 import { SAMPLE_SLUG, buildSampleReportFiles } from "./build-sample-report.mjs";
 
@@ -17,6 +17,23 @@ import { SAMPLE_SLUG, buildSampleReportFiles } from "./build-sample-report.mjs";
 
 const LOGO_SIZE = 300;
 const ICON_SIZE = 20;
+/**
+ * Independent floors on how much distinct colour each brand asset carries.
+ *
+ * `verifyBrandAssets` re-renders both assets and compares pixels, which catches drift
+ * between the committed files and the generator. It cannot catch a generator that starts
+ * producing something degenerate, because it compares the output against that same
+ * generator and would agree with it.
+ *
+ * These floors are the generator-independent half: they assert a property of the bytes
+ * themselves. The thresholds differ per asset because a 20x20 has 400 pixels and a
+ * 300x300 has 90,000, so one number cannot serve both. The logo floor is deliberately
+ * above the icon's own colour count, because the specific failure worth catching is a
+ * listing logo produced by upscaling the 20x20 icon - a nearest-neighbour upscale is a
+ * valid 300x300 PNG carrying only the icon's colours.
+ */
+const MIN_ICON_COLORS = 6;
+const MIN_LOGO_COLORS = 32;
 const SCREENSHOT_WIDTH = 1366;
 const SCREENSHOT_HEIGHT = 768;
 const MAX_SCREENSHOT_BYTES = 1024 * 1024;
@@ -201,6 +218,31 @@ await check("brand assets match their deterministic generator", () => {
     const problems = verifyBrandAssets(root);
     ensure(problems.length === 0, problems.join(" "));
     return "assets/icon.svg, assets/icon.png, assets/logo-300x300.png";
+});
+
+await check("brand assets carry real detail, independently of the generator", () => {
+    // The check above compares the committed assets against the generator, so it agrees
+    // with the generator by construction. This one asserts a property of the bytes, which
+    // is what a degenerate asset would fail regardless of how it was produced.
+    const targets = [
+        { relativePath: "assets/icon.png", floor: MIN_ICON_COLORS },
+        { relativePath: "assets/logo-300x300.png", floor: MIN_LOGO_COLORS }
+    ];
+    const reported = [];
+    for (const target of targets) {
+        const decoded = decodePng(readFileSync(path.join(root, target.relativePath)));
+        const seen = new Set();
+        for (let offset = 0; offset < decoded.data.length; offset += 4) {
+            seen.add(decoded.data.readUInt32BE(offset));
+        }
+        ensure(
+            seen.size >= target.floor,
+            `${target.relativePath} has ${seen.size} distinct colours, expected at least `
+            + `${target.floor}; it looks flat or upscaled rather than rendered.`
+        );
+        reported.push(`${target.relativePath} ${seen.size}`);
+    }
+    return reported.join(", ");
 });
 
 await check(
