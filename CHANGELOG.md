@@ -9,8 +9,8 @@
   `docs/partner-center-submission.md` recording every Partner Center field, the
   free-listing decision, and the remaining owner-controlled manual steps.
 - Added `samples/AtlynSample.pbip`, an offline PBIP sample report (PBIR report plus
-  TMDL semantic model) whose 36 rows live in a DAX calculated table, so it opens with
-  no data source, no credential prompt, and no refresh. The built visual is embedded as
+  TMDL semantic model) whose 36 rows live in a DAX calculated table, so there is no data
+  source, no credential prompt, and no refresh. The built visual is embedded as
   a private custom visual rather than resolved from the AppSource store.
 - Corrected the package metadata: `author.email` is now `atlyn.help@gmail.com`
   (`support@atlyn.example` used an RFC 2606 reserved TLD and could never receive mail),
@@ -64,6 +64,26 @@ measurements.
   version-keyed artifacts and must be re-published.
 - Pinned `hono` to `4.12.34` through `overrides` to clear GHSA-8j4g-w8fx-2239, a
   transitive moderate advisory reached through `powerbi-visuals-tools`.
+
+### Offline sample report opened in Power BI Desktop and failed
+
+- **Fixed a dangling resource reference.** `samples/.../report.json` declared a
+  `SharedResources` resource package pointing at `BaseThemes/CY24SU10.json`, a file this
+  project does not contain. `CY24SU10` is a base theme built into Desktop, so
+  `themeCollection` may name it, but a `resourcePackages` entry claims it ships as a file
+  inside the report. Desktop resolved the path, found nothing, showed `Issues were found`
+  and rendered an empty report. Provably a defect, provably gone.
+- Every file validated against its declared `$schema` throughout, before and after - a
+  JSON schema constrains shape, not existence - so `npm run submission-audit` now resolves
+  every declared reference in the sample against the files on disk, and asserts the
+  embedded visual is byte-identical to `dist/`.
+- **Changed by alignment, not by proof:** the report/page/pagesMetadata schema versions
+  and two TMDL details (four-tab DAX indentation, no explicit `dataType` on
+  calculated-table columns) now match the sibling project confirmed to open. These are
+  departures from the only configuration observed to load, which justifies aligning them;
+  none is established as causal.
+- **The project has not been re-opened in Desktop since the fix.** See the verification
+  status note in `docs/partner-center-submission.md` section 4.1.
 
 ### Enforcement
 

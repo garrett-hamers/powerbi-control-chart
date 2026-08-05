@@ -271,10 +271,35 @@ Steps:
 
 > **Verification status.** The project is generated against Microsoft's published
 > PBIP, PBIR, and TMDL schemas and is checked structurally by
-> `tests/sampleReport.test.ts` and `npm run submission-audit`. It has **not** been
-> opened in Power BI Desktop from this repository's automation, because Desktop is
-> Windows-desktop GUI software and is not launched by the build. Step 3 above is
-> therefore also the real-world verification step.
+> `tests/sampleReport.test.ts` and `npm run submission-audit`.
+>
+> **It was opened in Power BI Desktop 2.150.2102.0 and it failed.** Desktop showed an
+> `Issues were found` dialog, fell back to an `Untitled - Power BI Desktop` window title,
+> and rendered an empty `Add data to your report` surface. The dialog body could not be
+> read, because that surface is a web view that does not expose text to UI Automation.
+>
+> The cause found and fixed was a **dangling resource reference**: `report.json` declared
+> a `SharedResources` resource package pointing at `BaseThemes/CY24SU10.json`, a file this
+> project does not contain. `CY24SU10` is a base theme built into Desktop, so
+> `themeCollection` may name it, but a `resourcePackages` entry claims it ships as a file
+> inside the report. That is provably a defect, it is provably gone, and
+> `npm run submission-audit` now resolves every declared reference against the files on
+> disk so it cannot recur.
+>
+> **The project has not been re-opened in Desktop since the fix.** What can be claimed is
+> that it is now structurally equivalent to a sibling project that is confirmed to open,
+> not that it opens. Step 3 above is therefore still the real-world verification step, and
+> it may still fail for a reason the unreadable dialog body would have named.
+
+> **Changes made by alignment rather than by proof.** Alongside the dangling reference,
+> the report/page/pagesMetadata schema versions and two TMDL details (the DAX block
+> indented four tabs rather than three, and no explicit `dataType` on calculated-table
+> columns) were changed to match the sibling project that opens. **These are unproven.**
+> They are departures from the only configuration observed to load, which justifies
+> aligning them; it does not establish that any of them was causal. If Step 3 still fails,
+> treat these as the first confounds to isolate - and note that a sibling repository
+> preserved a commit in which the dangling reference is fixed while these remain
+> divergent, which would separate the two causes if it is ever opened.
 
 > **Format versions.** `definition.pbir` uses `"version": "4.0"` and
 > `definition.pbism` uses `"version": "4.2"` on purpose. Microsoft documents
