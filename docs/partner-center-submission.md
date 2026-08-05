@@ -350,6 +350,18 @@ and byte size from `dist/release-manifest.json` after a clean
 > downloads it fails with *cannot download* rather than *wrong bytes* - it cannot
 > verify, which is neither a pass nor a real failure.
 >
+> That expiry is a rebasable date, not a cliff. Because the packaged bytes are stable
+> across commits that touch no packaged input, the run for any later commit produces
+> the same artifact, and re-pointing the recorded `sourceCommit` at it buys a fresh 90
+> days. Measured 2026-08-05T08:10Z: `ef3ff0f8` expires `2026-11-03T01:02:13Z`, while
+> current `main` `3c6a2af3` expires `2026-11-03T08:03:11Z` and repackages to the same
+> `c046a386...` / 27,974 bytes. So the deadline only binds if this repository goes 90
+> days with no run on `main` *and* nobody updates the record.
+>
+> Re-point only when a local repackage of the newer commit reproduces the recorded
+> hash. That check is what makes the swap safe: without it, re-pointing would silently
+> change which bytes the record attests to.
+>
 > The verification path with no fixed expiry is to check out the commit and re-package:
 >
 > ```text
@@ -368,6 +380,21 @@ and byte size from `dist/release-manifest.json` after a clean
 > So if this check ever fails, read which step failed. `npm ci` failing is a registry
 > or integrity problem and says nothing about the artifact. Only a completed package
 > whose hash differs is evidence against the recorded value.
+>
+> **This path has been executed, not just described.** Measured 2026-08-05T08:30Z: a
+> fresh `git clone` of this repository at `3c6a2af3`, `npm ci` against an empty npm
+> cache so every tarball was fetched from the registry, then `npm run package`,
+> produced `c046a386...` / 27,974 bytes - identical to the recorded value. The same
+> run also settles cross-environment determinism: the artifact GitHub Actions built for
+> `3c6a2af3` on `ubuntu-latest` with Node 20 hashes to the same `c046a386...`, against
+> Windows 10 with Node 24.11.1, npm 11.6.2 and zlib 1.3.1 locally. Two different
+> operating systems, two major Node versions, one cold dependency install, identical
+> bytes.
+>
+> What that does *not* cover: it says nothing about future registry availability, and
+> nothing about Node versions newer than those two. It is evidence that the build is
+> insensitive to the axes that were actually varied, which is narrower than "the build
+> is deterministic everywhere".
 
 ### 4.4 Pre-submission link check
 
