@@ -334,6 +334,23 @@ The Atlyn storefront serves version-keyed downloads, so after this release the
 and byte size from `dist/release-manifest.json` after a clean
 `npm run package && npm run release-manifest`.
 
+> **Do not verify the hash by downloading a CI artifact.** GitHub Actions retains
+> artifacts for 90 days, and every packaged-visual artifact in this repository was
+> produced on 2026-08-05, so all of them expire between **2026-11-02 and 2026-11-03**.
+> After that date a provenance check that downloads the run artifact for a recorded
+> `sourceCommit` fails with *cannot download* rather than *wrong bytes* - it cannot
+> verify, which is neither a pass nor a real failure.
+>
+> The verification path that never expires is to check out the commit and re-package:
+>
+> ```text
+> git checkout <sourceCommit>
+> npm ci && npm run package && npm run release-manifest
+> ```
+>
+> and compare `dist/release-manifest.json` against the recorded hash and size. This
+> works for any commit at any age and is what the reproducibility gate already does.
+
 ### 4.4 Pre-submission link check
 
 Re-confirm immediately before submitting that all three URLs return HTTP 200:
