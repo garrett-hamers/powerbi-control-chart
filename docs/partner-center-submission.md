@@ -12,6 +12,30 @@ Nothing in this document asserts that the visual has been certified, validated, 
 accepted by Microsoft. It records what this repository provides and what the owner
 still has to do by hand.
 
+## 0. How values in this document are maintained
+
+Most values here mirror state this document does not own - bytes in a file, a field in
+`pbiviz.json`, a commit in the history. Every mirrored value is a place the document can
+drift from reality while still reading as authoritative, and five such drifts were found
+and fixed one at a time before this convention was written down.
+
+So every recorded value must be one of three kinds, and **new values must declare which**:
+
+| Kind | Maintenance | Example |
+| --- | --- | --- |
+| **Derived** | Do not trust the printed value; regenerate it. The text says how. | The artifact hash and size in section 4.3 |
+| **Enforced** | A gate compares it to reality, so it cannot drift silently. | The brand asset and screenshot byte counts in section 2, checked by `npm run submission-audit` |
+| **Recorded** | An observation at a stated time or commit. **Never update it** - re-run and add a new stamped entry alongside. | The geometry table in section 3.1, the cold-install proof in section 4.3 |
+
+The failure this prevents is subtle: a *recorded* value edited to match current reality
+looks like tidying and destroys the evidence, while a *derived* or *enforced* value left
+stale looks authoritative and is wrong. The two mistakes are opposites, so a reader who
+cannot tell the kinds apart will make one of them.
+
+Prefer **enforced** over **derived**, and **derived** over **recorded**, for anything that
+describes current state. Reserve **recorded** for evidence about a past event, which is the
+only kind that must never be refreshed.
+
 ## 1. Package metadata (`pbiviz.json`)
 
 | Partner Center field | Value | Source |
