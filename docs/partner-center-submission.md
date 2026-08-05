@@ -380,6 +380,21 @@ and byte size from `dist/release-manifest.json` after a clean
 > So if this check ever fails, read which step failed. `npm ci` failing is a registry
 > or integrity problem and says nothing about the artifact. Only a completed package
 > whose hash differs is evidence against the recorded value.
+>
+> **This path has been executed, not just described.** Measured 2026-08-05T08:30Z: a
+> fresh `git clone` of this repository at `3c6a2af3`, `npm ci` against an empty npm
+> cache so every tarball was fetched from the registry, then `npm run package`,
+> produced `c046a386...` / 27,974 bytes - identical to the recorded value. The same
+> run also settles cross-environment determinism: the artifact GitHub Actions built for
+> `3c6a2af3` on `ubuntu-latest` with Node 20 hashes to the same `c046a386...`, against
+> Windows 10 with Node 24.11.1, npm 11.6.2 and zlib 1.3.1 locally. Two different
+> operating systems, two major Node versions, one cold dependency install, identical
+> bytes.
+>
+> What that does *not* cover: it says nothing about future registry availability, and
+> nothing about Node versions newer than those two. It is evidence that the build is
+> insensitive to the axes that were actually varied, which is narrower than "the build
+> is deterministic everywhere".
 
 ### 4.4 Pre-submission link check
 
