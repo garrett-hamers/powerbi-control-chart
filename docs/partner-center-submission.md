@@ -335,10 +335,15 @@ and byte size from `dist/release-manifest.json` after a clean
 `npm run package && npm run release-manifest`.
 
 > **Do not verify the hash by downloading a CI artifact.** GitHub Actions retains
-> artifacts for 90 days, and every packaged-visual artifact in this repository was
-> produced on 2026-08-05, so all of them expire between **2026-11-02 and 2026-11-03**.
-> After that date a provenance check that downloads the run artifact for a recorded
-> `sourceCommit` fails with *cannot download* rather than *wrong bytes* - it cannot
+> artifacts for 90 days from the run that produced them, so any artifact-based
+> provenance check has a moving expiry date rather than a fixed one: each new run on
+> `main` adds artifacts with later expiries, and the *oldest* live artifact is the one
+> that goes first. Measured 2026-08-05T07:26Z, all 21 live artifacts in this repository
+> expire on **2026-11-03**; re-measure rather than trusting that date, because it moves
+> with every run.
+>
+> Once the artifact for a recorded `sourceCommit` has aged out, a provenance check that
+> downloads it fails with *cannot download* rather than *wrong bytes* - it cannot
 > verify, which is neither a pass nor a real failure.
 >
 > The verification path with no fixed expiry is to check out the commit and re-package:
