@@ -228,6 +228,7 @@ await check("brand assets carry real detail, independently of the generator", ()
         { relativePath: "assets/icon.png", floor: MIN_ICON_COLORS },
         { relativePath: "assets/logo-300x300.png", floor: MIN_LOGO_COLORS }
     ];
+    const counts = new Map();
     const reported = [];
     for (const target of targets) {
         const decoded = decodePng(readFileSync(path.join(root, target.relativePath)));
@@ -240,9 +241,22 @@ await check("brand assets carry real detail, independently of the generator", ()
             `${target.relativePath} has ${seen.size} distinct colours, expected at least `
             + `${target.floor}; it looks flat or upscaled rather than rendered.`
         );
+        counts.set(target.relativePath, seen.size);
         reported.push(`${target.relativePath} ${seen.size}`);
     }
-    return reported.join(", ");
+
+    // MIN_LOGO_COLORS is not an arbitrary constant: an upscale of the icon carries exactly
+    // the icon's colours, so the floor only discriminates while it sits above that count.
+    // Enforcing the relation rather than the number means a redesigned icon fails here
+    // instead of silently making the floor decorative.
+    const iconColors = counts.get("assets/icon.png");
+    ensure(
+        MIN_LOGO_COLORS > iconColors,
+        `MIN_LOGO_COLORS is ${MIN_LOGO_COLORS} but assets/icon.png now has ${iconColors} `
+        + "distinct colours; an upscale of it would pass. Raise the floor above the icon."
+    );
+
+    return `${reported.join(", ")}, logo floor ${MIN_LOGO_COLORS} > icon ${iconColors}`;
 });
 
 await check(
