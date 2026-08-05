@@ -300,6 +300,30 @@ await check("every committed screenshot corresponds to a declared scene", async 
     return `${committed.length} scenes`;
 });
 
+await check("the dossier's recorded screenshot byte counts match the committed files", () => {
+    // The dossier states these are re-verified on every audit run. That sentence was true
+    // of the 1024 KB limit and false of the counts themselves, so nothing stopped the table
+    // drifting from the files after a re-capture. This makes the claim true.
+    const dossier = readFileSync(path.join(root, "docs", "partner-center-submission.md"), "utf8");
+    const rows = [...dossier.matchAll(/\|\s*`assets\/screenshots\/([^`]+)`\s*\|\s*\d+x\d+\s*\|\s*([\d,]+)\s*\|/g)];
+    const committed = readdirSync(path.join(root, "assets", "screenshots"))
+        .filter((name) => name.toLowerCase().endsWith(".png"))
+        .sort();
+    ensure(
+        rows.length === committed.length,
+        `the dossier documents ${rows.length} screenshot(s) but ${committed.length} are committed.`
+    );
+    rows.forEach(([, name, recorded]) => {
+        const actual = statSync(path.join(root, "assets", "screenshots", name)).size;
+        const claimed = Number.parseInt(recorded.replaceAll(",", ""), 10);
+        ensure(
+            actual === claimed,
+            `the dossier records ${recorded} bytes for ${name} but the file is ${actual} bytes.`
+        );
+    });
+    return `${rows.length} recorded byte count(s) match`;
+});
+
 await check("EULA is present", () => {
     const eulaPath = path.join(root, "EULA.md");
     const bytes = requireNonEmptyFile(eulaPath, 512);
