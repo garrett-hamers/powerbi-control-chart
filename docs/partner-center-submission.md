@@ -336,11 +336,15 @@ and byte size from `dist/release-manifest.json` after a clean
 
 > **Do not verify the hash by downloading a CI artifact.** GitHub Actions retains
 > artifacts for 90 days from the run that produced them, so any artifact-based
-> provenance check has a moving expiry date rather than a fixed one: each new run on
-> `main` adds artifacts with later expiries, and the *oldest* live artifact is the one
-> that goes first. Measured 2026-08-05T07:26Z, all 21 live artifacts in this repository
-> expire on **2026-11-03**; re-measure rather than trusting that date, because it moves
-> with every run.
+> provenance check has a moving expiry date rather than a fixed one.
+>
+> The date that matters is the expiry of **the artifact produced by the run for the
+> recorded `sourceCommit`** - not the oldest artifact in the repository. Those are
+> different populations, and the oldest is usually the wrong one: it typically belongs
+> to a superseded pull-request head that no record references, so its expiry measures
+> the lifetime of something nothing depends on. Measured 2026-08-05T07:26Z, the
+> artifact for `sourceCommit` `ef3ff0f8` expires **2026-11-03T01:02:13Z**. Re-measure
+> against the recorded commit rather than trusting that date.
 >
 > Once the artifact for a recorded `sourceCommit` has aged out, a provenance check that
 > downloads it fails with *cannot download* rather than *wrong bytes* - it cannot
