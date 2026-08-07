@@ -114,6 +114,13 @@ describe("AppSource submission assets", () => {
         );
     });
 
+    test("keeps Desktop output out of deterministic PBIP source comparison", () => {
+        const audit = readFileSync(join(root, "scripts", "audit-submission-assets.mjs"), "utf8");
+        expect(audit).toContain("key !== `samples/${SAMPLE_SLUG}.pbix`");
+        expect(audit).toContain('!key.includes("/.pbi/")');
+        expect(audit).toContain("Sample .pbix report:");
+    });
+
     test("declares one screenshot scene per committed PNG", () => {
         const scenes = readFileSync(join(root, "tools", "screenshots", "scenes.mjs"), "utf8");
         const declared = [...scenes.matchAll(/id: "([^"]+)"/g)].map((match) => match[1]).sort();
