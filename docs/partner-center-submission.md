@@ -314,10 +314,11 @@ Steps:
 > PBIP, PBIR, and TMDL schemas and is checked structurally by
 > `tests/sampleReport.test.ts` and `npm run submission-audit`.
 >
-> **It was opened in Power BI Desktop 2.150.2102.0 and it failed.** Desktop showed an
-> `Issues were found` dialog, fell back to an `Untitled - Power BI Desktop` window title,
-> and rendered an empty `Add data to your report` surface. The dialog body could not be
-> read, because that surface is a web view that does not expose text to UI Automation.
+> **It was opened, refreshed, saved, and reopened successfully in Power BI Desktop
+> 2.156.951.0 on 2026-08-06.** The visual rendered 36 rows and 4 alarms before save and
+> after reopening the native `samples/AtlynSample.pbix`. The owner-selected sensitivity
+> label was `Public`. The PBIX is 48,899 bytes with SHA-256
+> `a54850cd650b3cc14681de0da121acb92295d33cc9eb0ffbdd5eeff553e6173f`.
 >
 > The cause found and fixed was a **dangling resource reference**: `report.json` declared
 > a `SharedResources` resource package pointing at `BaseThemes/CY24SU10.json`, a file this
@@ -327,11 +328,6 @@ Steps:
 > `npm run submission-audit` now resolves every declared reference against the files on
 > disk so it cannot recur.
 >
-> **The project has not been re-opened in Desktop since the fix.** What can be claimed is
-> that it is now structurally equivalent to a sibling project that is confirmed to open,
-> not that it opens. Step 3 above is therefore still the real-world verification step, and
-> it may still fail for a reason the unreadable dialog body would have named.
-
 > **Changes made by alignment rather than by proof.** Alongside the dangling reference,
 > the report/page/pagesMetadata schema versions and two TMDL details (the DAX block
 > indented four tabs rather than three, and no explicit `dataType` on calculated-table

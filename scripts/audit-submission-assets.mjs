@@ -438,9 +438,14 @@ await check("offline sample report project matches its deterministic generator",
 
     // Without a built package the generator cannot emit the embedded visual, so compare only
     // the files it was able to produce and flag the gap separately.
+    // Desktop-authored output and local workspace state are not generator inputs. The PBIX
+    // is checked and reported separately below; .pbi folders are per-machine Desktop caches.
+    const generatedProjectFiles = [...committed.keys()].filter(
+        (key) => key !== `samples/${SAMPLE_SLUG}.pbix` && !key.includes("/.pbi/")
+    );
     const comparable = packageBuilt
-        ? [...committed.keys()]
-        : [...committed.keys()].filter((key) => !key.includes("/CustomVisuals/"));
+        ? generatedProjectFiles
+        : generatedProjectFiles.filter((key) => !key.includes("/CustomVisuals/"));
 
     const missing = [...expected.keys()].filter((key) => !committed.has(key));
     ensure(missing.length === 0, `samples/ is missing generated file(s): ${missing.join(", ")}`);
